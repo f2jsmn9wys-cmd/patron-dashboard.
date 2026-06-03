@@ -140,7 +140,10 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-ui), -ap
 /* staggered entrance */
 .bento > *:nth-child(1){animation-delay:.02s}.bento > *:nth-child(2){animation-delay:.06s}.bento > *:nth-child(3){animation-delay:.10s}.bento > *:nth-child(4){animation-delay:.14s}.bento > *:nth-child(5){animation-delay:.18s}.bento > *:nth-child(6){animation-delay:.22s}.bento > *:nth-child(7){animation-delay:.26s}.bento > *:nth-child(8){animation-delay:.30s}.bento > *:nth-child(9){animation-delay:.34s}.bento > *:nth-child(10){animation-delay:.38s}
 .cardArt { position: relative; aspect-ratio: 16/10; background: radial-gradient(circle at 50% 42%, #16162a, #0b0b14 72%); display:grid; place-items:center; overflow:hidden; }
-.cardArt::before { content:''; position:absolute; inset:0; background: var(--art, linear-gradient(135deg,#8B5CF6,#22D3EE)); opacity: 0.13; }
+/* per-app color comes back as a soft glow concentrated behind the icon,
+   masked to a radial so it fades to the dark tile at the card edges */
+.cardArt::before { content:''; position:absolute; inset:0; background: var(--art, linear-gradient(135deg,#8B5CF6,#22D3EE)); opacity: 0.5; -webkit-mask: radial-gradient(72% 78% at 50% 44%, #000 0%, transparent 72%); mask: radial-gradient(72% 78% at 50% 44%, #000 0%, transparent 72%); transition: opacity var(--duration) var(--ease-premium); }
+.card:hover .cardArt::before { opacity: 0.72; }
 .cardArt::after { content:''; position:absolute; inset:0; background: radial-gradient(120% 80% at 50% 120%, rgba(0,0,0,.45), transparent 70%); }
 .cardArtIcon { position: relative; z-index:1; display:grid; place-items:center; overflow: visible; transition: transform var(--duration) var(--ease-premium); }
 /* overflow:visible lets each icon's glow/depth fade out softly instead of being
