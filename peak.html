@@ -74,7 +74,15 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
 .secNum{ font-family:var(--serif); font-style:italic; font-size:14px; color:var(--muted); }
 .secTitle{ font-family:var(--mono); font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--muted2); }
 .secLine{ flex:1; height:1px; background:linear-gradient(90deg,var(--line2),transparent); }
-.secI{ width:22px; height:22px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-family:var(--serif); font-style:italic; font-size:12px; color:var(--muted); }
+.secI{ appearance:none; width:22px; height:22px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-family:var(--serif); font-style:italic; font-size:12px; color:var(--muted); cursor:pointer; background:none; }
+.secI:hover,.secI.on{ border-color:var(--accent); color:var(--accent2); }
+.infoCard{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); padding:22px 24px; margin:0 0 18px; }
+.infoTag{ display:inline-block; font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#04130c; background:linear-gradient(120deg,var(--accent),var(--accent2)); border-radius:var(--pill); padding:4px 10px; margin-bottom:14px; font-weight:600; }
+.infoCard h4{ font-family:var(--serif); font-style:italic; font-size:17px; margin:14px 0 6px; font-weight:600; }
+.infoCard h4:first-of-type{ margin-top:0; }
+.infoCard p{ font-size:13.5px; line-height:1.6; color:var(--muted2); margin:0; }
+.infoCard b{ color:var(--fg); }
+.footNote{ text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--muted); margin:32px auto 0; max-width:64ch; line-height:1.7; opacity:.7; }
 
 /* right now */
 .nowGrid{ display:grid; grid-template-columns:300px 1fr; gap:18px; margin-bottom:54px; }
@@ -660,7 +668,16 @@ function srcName(s){ return s==='apple'?'Apple Watch':s==='whoop'?'Whoop':s==='f
  * Render
  * ============================================================ */
 let whyOpen=false;
+let infoOpen=false;
 let selectedSrc=null; // which source pill is active (independent of saved data)
+function infoCardHtml(){
+  const days=feelDays();
+  return '<div class="infoCard"><span class="infoTag">Estimate · learns over 30 days</span>'
+    +'<p>Peak is a <b>science-based estimate from your own data</b> — not a medical measurement.</p>'
+    +'<h4>Real inputs</h4><p>Your Whoop / Apple Watch / manual vitals, the caffeine you log, water, protein, gym, and your weight/age/sex.</p>'
+    +'<h4>The model</h4><p>Energy curve = circadian rhythm (two-process sleep model) × your recovery, plus caffeine pharmacokinetics (absorption + your half-life) including the comedown. Recovery from HRV + resting HR + sleep; manual readiness uses the Hooper self-report index.</p>'
+    +'<h4>Learns you</h4><p>Your “how I feel” checks correct the model toward how you actually feel — gradually, reaching full strength after ~30 days. <b>'+days+'/30 days</b> in so far.</p></div>';
+}
 
 /* ---- per-day manual log (history for the day cards) ---- */
 const PLOG='peak_log_v1';
@@ -739,7 +756,8 @@ function render(){
     + recs.map(r=>'<div class="recRow'+(r[0]?' warn':'')+'"><span class="recDot"></span><span class="recTxt"><b>'+esc(r[1])+'</b> '+esc(r[2])+'</span></div>').join('')
     +'</div>';
 
-  const nowSec='<div class="sec"><span class="secNum">01</span><span class="secTitle">Right now</span><span class="secLine"></span><span class="secI">i</span></div>'
+  const nowSec='<div class="sec"><span class="secNum">01</span><span class="secTitle">Right now</span><span class="secLine"></span><button class="secI'+(infoOpen?' on':'')+'" id="infoBtn" title="How this is calculated">i</button></div>'
+    + (infoOpen?infoCardHtml():'')
     +'<div class="nowGrid">'+scoreCard+todayCard+'</div>';
 
   // energy curve
@@ -761,7 +779,8 @@ function render(){
   // caffeine — quick-log + crash coaching
   const cafSec='<div class="sec"><span class="secNum">03</span><span class="secTitle">Caffeine</span><span class="secLine"></span></div>'+caffeineCardHtml();
 
-  document.getElementById('app').innerHTML=head+srcRow+feelBar+mCard+tk+nowSec+daySec+cafSec;
+  const footNote='<p class="footNote">Peak is a science-based estimate from your own data — not a medical measurement. It personalizes to you over ~30 days. Tap the “i” to see how it’s calculated.</p>';
+  document.getElementById('app').innerHTML=head+srcRow+feelBar+mCard+tk+nowSec+daySec+cafSec+footNote;
   bindScrub(); bindFeel(); bindCaf();
 }
 function feelBarHtml(){
@@ -926,6 +945,7 @@ document.addEventListener('click',e=>{
   const s=e.target.closest('[data-src]'); if(s){ pickSource(s.dataset.src); return; }
   const c=e.target.closest('[data-chart]'); if(c){ chartType=c.dataset.chart; render(); return; }
   if(e.target.closest('#whyLink')){ whyOpen=!whyOpen; const b=document.getElementById('whyBox'); if(b)b.classList.toggle('on',whyOpen); return; }
+  if(e.target.closest('#infoBtn')){ infoOpen=!infoOpen; render(); return; }
 });
 
 /* dust particles */
