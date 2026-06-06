@@ -165,6 +165,8 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
 .scrubTip .l{ font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:1px; }
 .sleepMarks{ position:absolute; top:0; left:0; right:0; height:0; pointer-events:none; }
 .sleepMark{ position:absolute; top:-6px; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:.04em; color:var(--muted2); white-space:nowrap; background:var(--panel2); border:1px solid var(--line2); border-radius:7px; padding:3px 8px; }
+.taskMarks{ position:absolute; left:0; right:0; top:0; height:0; pointer-events:none; }
+.taskMark{ position:absolute; top:-7px; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:.02em; color:var(--fg); white-space:nowrap; background:var(--panel2); border:1px solid var(--line); border-bottom:2px solid var(--dc); border-radius:6px; padding:3px 8px; max-width:120px; overflow:hidden; text-overflow:ellipsis; }
 .crashMarks{ position:absolute; left:0; right:0; bottom:34px; height:0; pointer-events:none; }
 .crashMark{ position:absolute; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:.04em; color:#fca5a5; white-space:nowrap; background:var(--panel2); border:1px solid rgba(239,68,68,.45); border-radius:7px; padding:3px 8px; }
 .sleepPlan{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:11px 15px; margin-bottom:16px; border:1px solid var(--line); border-radius:var(--radius-sm); background:rgba(255,255,255,.02); }
@@ -695,7 +697,7 @@ function parseTask(str){
   let m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|till|until|[-–—])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
   if(m){ start=pClock(m[1],m[2],m[3]); end=pClock(m[4],m[5],m[6]||m[3]); if(end<=start)end=(end+12<=24)?end+12:start+1; s=s.replace(m[0],' '); }
   else {
-    let comp=s.match(/\b([01]?\d|2[0-3])([0-5]\d)\b/), one=s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i), dur=s.match(/\b(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins)\b/i);
+    let comp=s.match(/\b([01]?\d|2[0-3])([0-5]\d)\b/), one=s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i), dur=s.match(/\b(\d+(?:\.\d+)?)\s*(h|hrs?|hours?|m|mins?|minutes?|minuets?)\b/i);
     if(one){ start=pClock(one[1],one[2],one[3]); s=s.replace(one[0],' '); }
     else if(comp){ start=(+comp[1])+(+comp[2])/60; s=s.replace(comp[0],' '); }
     let durH=null; if(dur){ const n=+dur[1]; durH=/^m/i.test(dur[2])?n/60:n; s=s.replace(dur[0],' '); }
@@ -716,6 +718,8 @@ function bedCountdownMs(){ const {bed}=wakeBed(); let ms=tToMsToday(bed); if(ms<
 function msToHMS(ms){ ms=Math.max(0,ms); const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60; return h>0?(h+'h '+m+'m'):(m+'m '+String(sec).padStart(2,'0')+'s'); }
 function tickCountdowns(){ const now=Date.now(); document.querySelectorAll('[data-countdown]').forEach(el=>{ el.textContent=msToHMS((+el.dataset.countdown)-now); }); }
 function taskBands(){ return loadSched().map(t=>{ const x0=xOf(t.start),x1=xOf(t.end); return '<rect x="'+x0.toFixed(1)+'" y="0" width="'+Math.max(2,x1-x0).toFixed(1)+'" height="'+(CH-PADB)+'" fill="'+diffColor(t.diff)+'" opacity=".07"/>'; }).join(''); }
+function keyword(label){ return String(label).trim().split(/\s+/).slice(0,2).join(' ').slice(0,16); }
+function taskMarksHtml(){ const tasks=loadSched(); if(!tasks.length)return ''; return tasks.map(t=>{ const c=(t.start+t.end)/2/24*100; return '<div class="taskMark" style="left:'+clamp(c,7,93)+'%;--dc:'+diffColor(t.diff)+'">'+esc(keyword(t.label))+'</div>'; }).join(''); }
 function scheduleHtml(){
   const tasks=loadSched(), cur=curTask(), nxt=nextTask();
   const input='<div class="schInputRow"><input id="schInput" class="schInput" placeholder="e.g. deep work 9 to 11 hard, gym 1930, read 30m" autocomplete="off"><button class="schAdd" data-addsched="1">＋ Add</button></div><div class="schHint">task · time · difficulty — green easy · amber medium · pink hard</div>';
@@ -1070,11 +1074,12 @@ function render(){
   if(mc&&(!cc||Math.abs(mc.t-cc.t)>0.3)) crashLabels+='<div class="crashMark" style="left:'+clamp(mc.t/24*100,6,94)+'%">💊 comedown '+clockOf(mc.t)+'</div>';
   const curveCard='<div class="card curveCard">'+sleepPlan+'<div class="curveTop">'+peakRing
     +'<div class="curveLabel"><div class="curveTitleRow"><span class="curveWord" id="curveWord">Peak</span><span class="curveAt" id="curveAt">at '+clockOf(PEAK.t)+'</span><span class="curveScrub" id="curveScrub"><span class="d"></span>Scrubbing</span></div>'
-    +'<p class="curveDesc"><span class="curveEyebrow">Today’s energy curve</span><br>Your predicted score, hour by hour. Hover or drag to scrub. Red = a caffeine crash or med comedown.</p></div>'
+    +'<p class="curveDesc"><span class="curveEyebrow">Today’s energy curve</span></p></div>'
     +'<div class="seg">'+['line','bars','stack'].map(t=>'<button class="segBtn '+(chartType===t?'on':'')+'" data-chart="'+t+'">'+t+'</button>').join('')+'</div></div>'
     + feelBarHtml()
     +'<div class="chartWrap" id="chartWrap">'+chartSvg()
     +'<div class="sleepMarks"><div class="sleepMark" style="left:'+clamp(sp.bed/24*100,5,95)+'%">🌙 '+clockOf(sp.bed)+'</div><div class="sleepMark" style="left:'+clamp(sp.wake/24*100,5,95)+'%">☀️ '+clockOf(sp.wake)+'</div></div>'
+    +'<div class="taskMarks">'+taskMarksHtml()+'</div>'
     +'<div class="crashMarks">'+crashLabels+'</div>'
     +'<div class="scrubLine" id="scrubLine"></div><div class="scrubDot" id="scrubDot"></div><div class="scrubTip" id="scrubTip"></div></div>'
     +'<div class="xAxis">'+X_LABELS.map(l=>'<span>'+l+'</span>').join('')+'</div>'
