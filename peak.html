@@ -14,38 +14,41 @@
 <title>Peak · Liam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
 :root{
   color-scheme: dark;
-  --bg:#05080a; --bg2:#070d0a;
-  --panel:rgba(18,30,24,0.55); --panel2:rgba(14,24,19,0.85);
-  --fg:#eafff4; --muted:rgba(190,220,205,0.50); --muted2:rgba(190,220,205,0.80);
-  --line:rgba(52,211,153,0.16); --line2:rgba(52,211,153,0.34);
-  --accent:#34D399; --accent2:#6EE7B7; --glow:rgba(52,211,153,0.55);
-  --warn:#FBBF24; --low:#FB7185;
-  --serif:'Playfair Display',Georgia,serif; --mono:'JetBrains Mono',monospace; --ui:'Exo 2',-apple-system,sans-serif;
-  --radius:20px; --radius-sm:13px; --pill:999px;
+  --bg:#000; --bg2:#0a0a0a;
+  --panel:rgba(255,255,255,0.02); --panel2:rgba(8,8,8,0.92);
+  --fg:#fff; --muted:rgba(255,255,255,0.5); --muted2:rgba(255,255,255,0.7);
+  --line:rgba(255,255,255,0.08); --line2:rgba(110,231,183,0.30);
+  --accent:#6EE7B7; --accent2:#6EE7B7; --glow:rgba(110,231,183,0.4);
+  --warn:#F59E0B; --low:#EF4444;
+  --serif:'Instrument Serif',Georgia,serif; --mono:'JetBrains Mono',monospace; --ui:'Inter',-apple-system,sans-serif;
+  --radius:18px; --radius-sm:12px; --pill:999px;
   --ease:cubic-bezier(.16,1,.3,1);
 }
 *{box-sizing:border-box} html,body{margin:0;padding:0}
 body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font-smoothing:antialiased; }
-.page{ position:relative; min-height:100dvh; padding:clamp(20px,4vw,40px) clamp(16px,4vw,48px) 80px; isolation:isolate; overflow:hidden; }
+.page{ position:relative; min-height:100dvh; padding:clamp(20px,4vw,42px) clamp(16px,3vw,24px) 90px; isolation:isolate; overflow:hidden; }
 .page::before{ content:''; position:absolute; inset:0; z-index:-2; background:
-  radial-gradient(60% 45% at 50% 30%, rgba(52,211,153,0.10), transparent 70%),
-  radial-gradient(40% 30% at 85% 5%, rgba(110,231,183,0.08), transparent 70%); pointer-events:none; }
+  radial-gradient(1100px 620px at 50% -8%, rgba(110,231,183,0.05), transparent 60%), #000; pointer-events:none; }
+/* film grain */
+.grain{ position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 /* drifting particles */
 .dust{ position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.5; }
 .dust i{ position:absolute; border-radius:50%; background:var(--accent2); box-shadow:0 0 6px var(--accent2); animation:spark 6s var(--ease) infinite; }
 @keyframes spark{ 0%,100%{ transform:translateY(0) scale(.6); opacity:.05 } 50%{ transform:translateY(-16px) scale(1.4); opacity:.55 } }
-.shell{ max-width:1180px; margin:0 auto; }
+.shell{ max-width:960px; margin:0 auto; position:relative; z-index:1; }
 
 /* header */
 .top{ display:flex; align-items:center; gap:22px; margin-bottom:34px; flex-wrap:wrap; }
-.gem{ width:96px; height:96px; flex-shrink:0; filter:drop-shadow(0 8px 30px rgba(52,211,153,.4)); animation:gemSpin 9s var(--ease) infinite; }
-@keyframes gemSpin{ 0%,100%{ transform:perspective(500px) rotateY(-22deg) rotateX(8deg) } 50%{ transform:perspective(500px) rotateY(22deg) rotateX(-6deg) } }
+.gem{ flex-shrink:0; margin:-10px 0 -10px -6px; animation:gemFloat 9s ease-in-out infinite alternate; }
+@keyframes gemFloat{ from{ transform:translateY(0) rotate(-2deg) } to{ transform:translateY(-4px) rotate(2deg) } }
+@keyframes gemGlow{ 0%,100%{ filter:drop-shadow(0 0 18px rgba(110,231,183,.45)) } 50%{ filter:drop-shadow(0 0 30px rgba(110,231,183,.7)) } }
 .hgroup{ flex:1; min-width:240px; }
-.htitle{ font-family:var(--serif); font-weight:500; font-size:clamp(34px,5vw,56px); line-height:1; letter-spacing:-.01em; margin:0; }
+.htitle{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:clamp(34px,4.8vw,54px); line-height:1; letter-spacing:-.02em; margin:0; }
 .htitle em{ font-style:italic; color:var(--accent); }
 .hdate{ font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); margin:14px 0 0; }
 .backLink{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent2); text-decoration:none; border:1px solid var(--line2); border-radius:var(--pill); padding:9px 16px; align-self:flex-start; transition:border-color .2s, background .2s; }
@@ -289,6 +292,7 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
 </style>
 </head>
 <body>
+<div class="grain"></div>
 <main class="page">
   <div class="dust" id="dust"></div>
   <div class="shell" id="app"></div>
@@ -835,10 +839,16 @@ function render(){
   const cur=selectedSrc||(h&&h.source)||'manual';
   const pill=(key,label)=>'<button class="srcPill '+(cur===key?'on':'')+'" data-src="'+key+'"><span class="srcDot"></span>'+label+'</button>';
 
-  const gem='<svg class="gem" viewBox="0 0 48 48"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6EE7B7"/><stop offset="100%" stop-color="#10B981"/></linearGradient></defs>'
-    +'<polygon points="24,5 38,19 24,43 10,19" fill="url(#g1)" opacity=".9"/>'
-    +'<path d="M24 5 L38 19 L24 43 L10 19 Z" fill="none" stroke="#a7f3d0" stroke-width="1" opacity=".5"/>'
-    +'<path d="M10 19 H38 M24 5 V43 M17 12 L24 19 L31 12 M17 26 L24 19 L31 26" stroke="#ecfdf5" stroke-width=".8" fill="none" opacity=".4"/></svg>';
+  const gem='<svg class="gem" width="118" height="118" viewBox="0 0 100 100" style="animation:gemGlow 5s ease-in-out infinite">'
+    +'<defs><linearGradient id="gemA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4fce8"/><stop offset="1" stop-color="#6EE7B7"/></linearGradient>'
+    +'<linearGradient id="gemB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6EE7B7"/><stop offset="1" stop-color="#1f8f66"/></linearGradient>'
+    +'<linearGradient id="gemC" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0d5a3f"/><stop offset="1" stop-color="#39c08c"/></linearGradient>'
+    +'<linearGradient id="gemD" x1="1" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#125a40"/><stop offset="1" stop-color="#5fd6a0"/></linearGradient></defs>'
+    +'<polygon points="50,8 8,50 50,50" fill="url(#gemA)"/><polygon points="50,8 92,50 50,50" fill="url(#gemB)"/>'
+    +'<polygon points="50,92 8,50 50,50" fill="url(#gemC)"/><polygon points="50,92 92,50 50,50" fill="url(#gemD)"/>'
+    +'<polygon points="50,8 8,50 50,92 92,50" fill="none" stroke="#a7f3d0" stroke-opacity=".7" stroke-width="1"/>'
+    +'<line x1="50" y1="8" x2="50" y2="92" stroke="#d4fce8" stroke-opacity=".5" stroke-width=".8"/>'
+    +'<line x1="8" y1="50" x2="92" y2="50" stroke="#d4fce8" stroke-opacity=".35" stroke-width=".8"/></svg>';
 
   const head='<div class="top">'+gem
     +'<div class="hgroup"><h1 class="htitle">Your <em>peak</em> today</h1><p class="hdate">'+esc(dateStr)+'</p></div>'
