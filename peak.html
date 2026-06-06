@@ -706,17 +706,18 @@ function diffOf(s){ if(/\b(hard|intense|deep|heavy|max|pr|grind)\b/i.test(s))ret
 function diffColor(d){ return d==='hard'?'#FF50A6':d==='easy'?'#6EE7B7':'#F59E0B'; }
 function pClock(h,m,ap){ h=+h; m=m?+m:0; if(ap){ ap=ap.toLowerCase(); if(ap[0]==='p'&&h<12)h+=12; if(ap[0]==='a'&&h===12)h=0; } return h+m/60; }
 function parseTask(str){
-  const isGap=/^\s*gap\b/i.test(str);
-  let s=' '+str.replace(/^\s*gap\b/i,' ').trim()+' '; if(!s.trim())return null;
+  const gm=str.match(/^\s*(small|big)?\s*gap\b/i);
+  let s=' '+str.replace(/^\s*(small|big)?\s*gap\b/i,' ').trim()+' '; if(!s.trim())return null;
   const diff=diffOf(s);
-  if(isGap){
-    // a "gap" = a background filler that occupies free time (default ALL waking
-    // hours) and auto-splits around your fixed tasks.
+  if(gm){
+    // a "gap" = a background filler. big gap → fills ALL free waking time;
+    // small gap → only fills the SHORT free windows between fixed tasks.
+    const size=((gm[1]||'big').toLowerCase()==='small')?'small':'big';
     let rStart=null,rEnd=null;
     const m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|till|until|[-–—])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
     if(m){ rStart=pClock(m[1],m[2],m[3]); rEnd=pClock(m[4],m[5],m[6]||m[3]); if(rEnd<=rStart)rEnd=(rEnd+12<=24)?rEnd+12:rEnd; s=s.replace(m[0],' '); }
     s=s.replace(/\b(hard|intense|deep|heavy|max|pr|grind|easy|chill|light|admin|rest|relax|recover|medium|med|moderate|all|full|wake|waking|hours?|day|at|from|the)\b/ig,' ').replace(/\s+/g,' ').trim();
-    return {id:'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Gap'),diff,gap:true,rStart,rEnd};
+    return {id:'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Gap'),diff,gap:true,size,rStart,rEnd};
   }
   let start=null,end=null,durH=null,explicit=false;
   let m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|till|until|[-–—])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
@@ -738,11 +739,13 @@ function freeWithin(a,b,occupied){ let segs=[[a,b]];
   occupied.slice().sort((x,y)=>x.start-y.start).forEach(o=>{ const out=[]; segs.forEach(([s,e])=>{ if(o.end<=s||o.start>=e){ out.push([s,e]); return; } if(o.start>s)out.push([s,o.start]); if(o.end<e)out.push([o.end,e]); }); segs=out; }); return segs.filter(g=>g[1]-g[0]>0.12); }
 /* expand the raw items (fixed tasks + gap rules) into the actual timeline segments:
  * gaps fill free time and split around fixed tasks (and earlier gaps). */
-function effectiveSegments(){ const items=loadSched(); const {wake,bed}=wakeBed();
+function effectiveSegments(){ const items=loadSched(); const {wake,bed}=wakeBed(); const SMALL_MAX=1.5;
   const fixed=items.filter(t=>!t.gap).map(t=>({id:t.id,label:t.label,diff:t.diff,start:t.start,end:t.end,gap:false,ruleId:t.id,explicit:t.explicit}));
   const occupied=fixed.map(f=>({start:f.start,end:f.end})); const segs=fixed.slice();
-  items.filter(t=>t.gap).forEach(rule=>{ const a=Math.max(rule.rStart!=null?rule.rStart:wake,wake), b=Math.min(rule.rEnd!=null?rule.rEnd:bed,bed);
-    freeWithin(a,b,occupied).forEach((g,i)=>{ const seg={id:rule.id+'_'+i,label:rule.label,diff:rule.diff,start:g[0],end:g[1],gap:true,ruleId:rule.id}; segs.push(seg); occupied.push({start:g[0],end:g[1]}); }); });
+  function fill(rule,onlySmall){ const a=Math.max(rule.rStart!=null?rule.rStart:wake,wake), b=Math.min(rule.rEnd!=null?rule.rEnd:bed,bed);
+    freeWithin(a,b,occupied).forEach(g=>{ if(onlySmall&&(g[1]-g[0])>SMALL_MAX)return; const seg={id:rule.id+'_'+occupied.length,label:rule.label,diff:rule.diff,start:g[0],end:g[1],gap:true,ruleId:rule.id}; segs.push(seg); occupied.push({start:g[0],end:g[1]}); }); }
+  items.filter(t=>t.gap&&t.size==='small').forEach(r=>fill(r,true));  // small gaps grab the short windows first
+  items.filter(t=>t.gap&&t.size!=='small').forEach(r=>fill(r,false)); // big gaps fill everything left
   return segs.sort((a,b)=>a.start-b.start);
 }
 /* free intervals across the whole WAKING day (so we pick the genuinely best-energy
@@ -803,10 +806,10 @@ function bindTaskDrag(){ const wrap=document.getElementById('chartWrap'), svg=do
   }); }); }
 function scheduleHtml(){
   const tasks=loadSched(), cur=curTask(), nxt=nextTask();
-  const input='<div class="schInputRow"><input id="schInput" class="schInput" placeholder="e.g. school 8-2, gym 1930 hard, gap claude" autocomplete="off"><button class="schAdd" data-addsched="1">＋ Add</button></div><div class="schHint">fixed task = give a time (9-11) · “gap claude” fills your free time &amp; splits around fixed tasks · “gap 9-5 claude” limits the range · easy/medium/hard = color</div>';
+  const input='<div class="schInputRow"><input id="schInput" class="schInput" placeholder="e.g. school 8-2, gym 1930 hard, gap claude" autocomplete="off"><button class="schAdd" data-addsched="1">＋ Add</button></div><div class="schHint">fixed task = give a time (9-11) · “big gap claude” fills your whole free day · “small gap homework” fills only the short windows between tasks · gaps never touch sleep · easy/medium/hard = color</div>';
   // workout nudge: you've trained recently but not today
   const wOut = (!gymLoggedToday() && gymDaysLast7()>=1) ? '<div class="schWorkout"><button class="schWoBtn" data-workout="1">🏋️ You’ve been training — work out today?</button>'+(workoutOpen?'<div class="schWoOpts">'+[['45m',0.75],['1h',1],['1h 30m',1.5],['2h',2]].map(o=>'<button class="schWoOpt" data-addworkout="'+o[1]+'">'+o[0]+'</button>').join('')+'</div>':'')+'</div>' : '';
-  const row = tasks.length ? '<div class="schRow">'+tasks.map(t=>{ const time = t.gap ? (t.rStart!=null?clockOf(t.rStart)+'–'+clockOf(t.rEnd):'fills gaps') : clockOf(t.start);
+  const row = tasks.length ? '<div class="schRow">'+tasks.map(t=>{ const time = t.gap ? (t.rStart!=null?clockOf(t.rStart)+'–'+clockOf(t.rEnd):(t.size==='small'?'small gaps':'fills day')) : clockOf(t.start);
       return '<span class="schChip'+(t.gap?' gapChip':'')+'" style="--dc:'+diffColor(t.diff)+'"><b>'+esc(t.label)+'</b><span class="schChipTime">'+time+'</span>'+(!t.gap&&!t.explicit?'<span class="schGap" data-gaptask="'+t.id+'" title="Re-slot to best free time">↻</span>':'')+'<span class="schX" data-rmsched="'+t.id+'">×</span></span>'; }).join('')+'</div>' : '';
   let nowBlock;
   if(cur){ nowBlock='<div class="schNow"><div class="schNowTag" style="color:'+diffColor(cur.diff)+'">● Now · running</div><div class="schNowLabel">'+esc(cur.label)+'</div><div class="schNowTime">'+fmtRange(cur.start,cur.end)+'</div><div class="schCount">ends in <b class="cdVal" data-countdown="'+tToMsToday(cur.end)+'"></b></div>'+(nxt?'<div class="schNext"><span class="schNextDot"></span>Up next · <b>'+esc(nxt.label)+'</b> · '+clockOf(nxt.start)+'</div>':'')+'</div>'; }
