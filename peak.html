@@ -744,7 +744,7 @@ const SCHED='peak_schedule_v1'; let planOpen=false;
  * stale saved tasks once (the file is the source of truth, like the style),
  * while still letting you add/drag/edit in Peak afterwards (your edits save
  * under today's key with the current seed and win until the next day or ship). */
-const SCHED_SEED='lab-2026-06-07b';
+const SCHED_SEED='lab-2026-06-07c';
 const DEFAULT_SCHED=[
   { id:'t1', label:'Morning',   start:6,    end:8,    durH:2,   color:'#6EE7B7', icon:'☀', diff:'easy', locked:true,  explicit:true, gap:false },
   { id:'t2', label:'Claude',    start:9,    end:11.5, durH:2.5, color:'#A78BFA', icon:'✦', diff:'med',  locked:false, explicit:true, gap:false },
@@ -788,7 +788,7 @@ function parseTask(str){
     const m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|till|until|[-–—])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
     if(m){ rStart=pClock(m[1],m[2],m[3]); rEnd=pClock(m[4],m[5],m[6]||m[3]); if(rEnd<=rStart)rEnd=(rEnd+12<=24)?rEnd+12:rEnd; s=s.replace(m[0],' '); }
     s=s.replace(/\b(hard|intense|deep|heavy|max|pr|grind|easy|chill|light|admin|rest|relax|recover|medium|med|moderate|all|full|wake|waking|hours?|day|at|from|the)\b/ig,' ').replace(/\s+/g,' ').trim();
-    return {id:'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Gap'),diff,gap:true,size,rStart,rEnd};
+    return {id:'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Gap'),diff,color:diffColor(diff),gap:true,size,rStart,rEnd};
   }
   let start=null,end=null,durH=null,explicit=false;
   let m=s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|till|until|[-–—])\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
@@ -801,7 +801,7 @@ function parseTask(str){
     durH=durH||1; if(explicit){ end=start+durH; }
   }
   s=s.replace(/\b(hard|intense|deep|heavy|max|pr|grind|easy|chill|light|admin|rest|relax|recover|medium|med|moderate|fill|full|at|from)\b/ig,' ').replace(/\s+/g,' ').trim();
-  return {id:'k_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Task'),diff,durH:durH||1,explicit,locked:explicit,start,end,fill:fillFlag};
+  return {id:'k_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Task'),diff,color:diffColor(diff),durH:durH||1,explicit,locked:explicit,start,end,fill:fillFlag};
 }
 function taskDur(t){ return (t&&t.durH&&t.durH>0)?t.durH:((t&&t.start!=null&&t.end!=null)?Math.max(0.25,t.end-t.start):1); }
 function fixedTasks(){ return loadSched().filter(t=>!t.gap); }
