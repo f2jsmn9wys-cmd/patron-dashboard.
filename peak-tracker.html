@@ -614,7 +614,7 @@ function medCardHtml(){
     + searchBlock
     + medLogsHtml()
     +'<div class="cafTip"><span class="cafTipIcon">'+tip.icon+'</span><span class="cafTipTxt">'+tip.txt+'</span></div>'
-    +'<a class="trackLink" href="meds.html">Open Meds tracker →</a>'
+    +''
     +'</div>';
 }
 function medLogsHtml(){ const logs=medTodayLogs(); if(!logs.length)return ''; return '<div class="cafLogsHead"><span class="cafLogsLab">Today’s doses</span><button class="cafClear" data-clearmed="1">clear all</button></div><div class="cafLogs">'+logs.map(l=>'<span class="cafLog"><b>'+esc(l.name)+'</b> '+Math.round(l.mg)+'mg · '+fmtClockMs(l.t)+'<span class="cafLogX" data-rmmed="'+esc(l.id||'')+'" title="Remove">×</span></span>').join('')+'</div>'; }
@@ -629,7 +629,7 @@ function waterCardHtml(){
     +'<div class="cafChips"><button class="cafChip" data-water="1"><span class="cafChipName">+1 glass</span><span class="cafChipMg">~250 ml</span></button>'
     +'<button class="cafChip" data-water="2"><span class="cafChipName">+2 glasses</span><span class="cafChipMg">~500 ml</span></button>'
     +(c>0?'<button class="cafChip" data-water="-1"><span class="cafChipName">− undo</span><span class="cafChipMg">last glass</span></button>':'')+'</div>'
-    +'<a class="trackLink" href="water.html">Open Water tracker →</a></div>';
+    +'</div>';
 }
 
 /* ---- compact Supplements card (tap to mark taken; syncs supplements_standalone_v1) ---- */
@@ -639,14 +639,14 @@ function suppTakenMap(){ const s=readLS('supplements_standalone_v1'); return (s&
 function toggleSupp(id){ const s=readLS('supplements_standalone_v1')||{items:[],taken:{}}; if(!s.taken)s.taken={}; const k=suppDateKey(); const day=Object.assign({},s.taken[k]||{}); if(day[id])delete day[id]; else day[id]=true; s.taken[k]=day; try{ localStorage.setItem('supplements_standalone_v1',JSON.stringify(s)); }catch(e){} render(); }
 function suppCardHtml(){
   const items=suppItems();
-  if(!items.length) return '<div class="card cafCard"><div class="cafHero"><div class="cafHeroV" style="font-size:20px">No stack yet</div><div class="cafCeil">supplements</div></div><a class="trackLink" href="supplements.html">Set up Supplements →</a></div>';
+  if(!items.length) return '<div class="card cafCard"><div class="cafHero"><div class="cafHeroV" style="font-size:20px">No stack yet</div><div class="cafCeil">supplements</div></div></div>';
   const tk=suppTakenMap(); const taken=items.filter(i=>tk[i.id]).length;
   const chips=items.map(i=>'<button class="cafChip'+(tk[i.id]?' suppOn':'')+'" data-supp="'+esc(i.id)+'"><span class="cafChipName">'+(tk[i.id]?'✓ ':'')+esc(i.name)+'</span></button>').join('');
   return '<div class="card cafCard">'
     +'<div class="cafHero"><div class="cafHeroV">'+taken+'<small> / '+items.length+' taken</small></div><div class="cafCeil">tap to log</div></div>'
     +'<div class="cafBar"><div class="cafBarFill" style="width:'+Math.round(taken/items.length*100)+'%"></div></div>'
     +'<div class="cafChips">'+chips+'</div>'
-    +'<a class="trackLink" href="supplements.html">Open Supplements →</a></div>';
+    +'</div>';
 }
 
 /* ---- profile stats for the header ticker ---- */
@@ -1412,7 +1412,7 @@ function render(){
 
   const head='<div class="top">'+gem
     +'<div class="hgroup"><h1 class="htitle"><span class="maskLine"><span class="lineInner'+(titleRevealed?'':' reveal')+'">Your <em>peak</em> today</span></span></h1><p class="hdate">'+esc(dateStr)+'</p></div>'
-    +'<a class="backLink" href="index.html">← Dashboard</a></div>';
+    +'</div>';
   titleRevealed=true; // subsequent re-renders show the title static (no re-flip)
 
   const srcRow='<div class="srcRow"><span class="srcLab">Source</span>'+pill('manual','Manual')+pill('whoop','Whoop')+pill('apple','Apple Watch')+'</div>';
@@ -1524,7 +1524,7 @@ function caffeineCardHtml(){
     + searchBlock
     + caffLogsHtml()
     +'<div class="cafTip'+(tip.warn?' warn':'')+'"><span class="cafTipIcon">'+tip.icon+'</span><span class="cafTipTxt">'+tip.txt+'</span></div>'
-    +'<a class="trackLink" href="stimulant.html">Open Caffeine tracker →</a>'
+    +''
     +'</div>';
 }
 function caffLogsHtml(){
