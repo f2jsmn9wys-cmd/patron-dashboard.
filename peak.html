@@ -197,6 +197,10 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
 .sleepLabels{ position:absolute; inset:0; pointer-events:none; z-index:2; }
 .sleepLbl{ position:absolute; top:8px; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:rgba(110,231,183,.6); white-space:nowrap; }
 .sleepLbl.wake{ color:var(--muted2); }
+.sleepHit{ position:absolute; top:0; bottom:30px; z-index:2; cursor:pointer; }
+.sleepHit:hover{ background:rgba(110,231,183,.05); }
+.sleepEditBtn{ position:absolute; top:50%; transform:translate(-50%,-50%); z-index:6; appearance:none; cursor:pointer; white-space:nowrap; font-family:var(--mono); font-size:10px; letter-spacing:.04em; color:var(--accent2); background:var(--panel2); border:1px solid var(--line2); border-radius:9px; padding:8px 12px; box-shadow:0 8px 22px rgba(0,0,0,.55); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+.sleepEditBtn:hover{ border-color:var(--accent); background:rgba(110,231,183,.12); }
 /* live "now" marker on the graph (ported from Schedule Lab): value bubble + dot + line, plus the bedtime moon */
 .nowline{ position:absolute; top:0; bottom:18px; width:1px; background:rgba(255,255,255,.4); pointer-events:none; z-index:4; }
 .nowdot{ position:absolute; width:13px; height:13px; border-radius:50%; background:#fff; border:2px solid var(--accent2); box-shadow:0 0 14px var(--accent2); transform:translate(-50%,-50%); pointer-events:none; z-index:5; }
@@ -1319,6 +1323,15 @@ function sleepLabelsHtml(){ const {bed,wake}=optimalSleep();
   if(wake>1) h+='<div class="sleepLbl" style="left:'+clamp(wake/2/24*100,5,95).toFixed(1)+'%">☾ sleep</div>';
   h+='<div class="sleepLbl wake" style="left:'+clamp(wake/24*100,4,96).toFixed(1)+'%">☀ wake '+clockOf(wake)+'</div>';
   return h; }
+/* invisible hover targets over the sleep zone — hovering reveals an "edit" button */
+function sleepHitHtml(){ const {bed,wake}=optimalSleep();
+  const z=(a,b)=>{ if(b<=a+0.05)return ''; const L=(a/24*100), W=((b-a)/24*100); return '<div class="sleepHit" style="left:'+L.toFixed(2)+'%;width:'+W.toFixed(2)+'%"></div>'; };
+  return z(0,wake)+z(bed,24)+'<button id="sleepEditBtn" class="sleepEditBtn" data-addsleep="1" style="display:none">✎ Edit wake &amp; sleep time</button>'; }
+function bindSleepEdit(){ const wrap=document.getElementById('chartWrap'); if(!wrap)return; const btn=document.getElementById('sleepEditBtn'); const hits=wrap.querySelectorAll('.sleepHit'); if(!btn||!hits.length)return; let hideT;
+  const show=hitEl=>{ clearTimeout(hideT); const wr=wrap.getBoundingClientRect(), hr=hitEl.getBoundingClientRect(); btn.style.display='block'; let x=(hr.left+hr.right)/2-wr.left; x=clamp(x, btn.offsetWidth/2+8, wr.width-btn.offsetWidth/2-8); btn.style.left=x.toFixed(0)+'px'; };
+  const hide=()=>{ hideT=setTimeout(()=>{ btn.style.display='none'; },160); };
+  hits.forEach(h=>{ h.addEventListener('pointerenter',()=>show(h)); h.addEventListener('pointerleave',hide); });
+  btn.addEventListener('pointerenter',()=>clearTimeout(hideT)); btn.addEventListener('pointerleave',hide); }
 function chartSvg(){
   const G=graphStyle();                              // imported Graph Lab design (or shipped default)
   const gc=G.color, lw=G.line;
@@ -1639,6 +1652,7 @@ function render(){
     + feelBarHtml()
     +'<div class="chartWrap" id="chartWrap">'+chartBackdropHtml()+chartSvg()
     +'<div class="sleepLabels">'+sleepLabelsHtml()+'</div>'
+    +sleepHitHtml()
     +'<div class="schBands" id="schBands">'+schOverlayHtml()+'</div>'
     +'<div class="crashMarks">'+crashLabels+'</div>'
     +'<div class="scrubLine" id="scrubLine"></div><div class="scrubDot" id="scrubDot"></div><div class="scrubTip" id="scrubTip"></div><div class="dragTime" id="dragTime"></div></div>'
@@ -1656,7 +1670,7 @@ function render(){
 
   const footNote='<p class="footNote">Peak is a science-based estimate from your own data — not a medical measurement. It personalizes to you over ~30 days. Tap the “i” to see how it’s calculated. Meds are modeled for information only, never as dosing advice.</p>';
   document.getElementById('app').innerHTML=head+srcRow+topScore+mCard+tk+daySec+schedSec+nowSec+cafSec+medSec+waterSec+suppSec+footNote;
-  bindScrub(); bindFeel(); bindCaf(); bindMed(); bindSched(); bindTaskDrag(); layoutSchedPills(); tickCountdowns();
+  bindScrub(); bindFeel(); bindCaf(); bindMed(); bindSched(); bindTaskDrag(); bindSleepEdit(); layoutSchedPills(); tickCountdowns();
 }
 function feelBarHtml(){
   const f=latestFeelToday(); const val=f!=null?f:Math.round(energyAt(nowT()).e);
@@ -1871,7 +1885,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#infoBtn')){ infoOpen=!infoOpen; render(); return; }
   // click a free stretch of the chart to arm that window (or a task to arm it)
   const cwrap=e.target.closest('#chartWrap');
-  if(cwrap && !e.target.closest('.taskMark') && !e.target.closest('.plan')){
+  if(cwrap && !e.target.closest('.taskMark') && !e.target.closest('.plan') && !e.target.closest('.sleepHit') && !e.target.closest('.sleepEditBtn')){
     const r=cwrap.getBoundingClientRect(); const hour=clamp((e.clientX-r.left)/r.width,0,1)*24; schArmHour(hour); return;
   }
 });
