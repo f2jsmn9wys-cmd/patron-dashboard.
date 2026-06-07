@@ -1159,6 +1159,9 @@ function smoothPath(pts){
   for(let i=1;i<pts.length;i++){ const p0=pts[i-1],p1=pts[i]; const cx=(p0[0]+p1[0])/2; d+=' C'+cx.toFixed(1)+' '+p0[1].toFixed(1)+' '+cx.toFixed(1)+' '+p1[1].toFixed(1)+' '+p1[0].toFixed(1)+' '+p1[1].toFixed(1); }
   return d;
 }
+// stepped path (Graph Lab "stepped area" look): hold each level, then step to the next
+function stepPath(pts){ if(!pts.length)return ''; let d='M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+  for(let i=1;i<pts.length;i++){ d+=' L'+pts[i][0].toFixed(1)+' '+pts[i-1][1].toFixed(1)+' L'+pts[i][0].toFixed(1)+' '+pts[i][1].toFixed(1); } return d; }
 function gridLines(){ let g=''; for(let i=1;i<=3;i++){ const y=PADT+(i/4)*(CH-PADT-PADB); g+='<line x1="0" y1="'+y.toFixed(1)+'" x2="'+CW+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.05)" stroke-dasharray="2 5"/>'; } return g; }
 function nowMarker(){ const t=nowT(); const x=xOf(t); return '<line x1="'+x.toFixed(1)+'" y1="0" x2="'+x.toFixed(1)+'" y2="'+(CH-PADB)+'" stroke="rgba(255,255,255,.18)" stroke-dasharray="3 4"/>'; }
 function sleepMarkers(){ const {bed,wake}=optimalSleep();
@@ -1167,7 +1170,8 @@ function sleepMarkers(){ const {bed,wake}=optimalSleep();
 function chartSvg(){
   const gc=graphColor(), gcShadow=toRGBA(gc,.7);   // energy-curve color follows the theme accent
   const defs='<defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+gc+'" stop-opacity=".34"/><stop offset="100%" stop-color="'+gc+'" stop-opacity="0"/></linearGradient>'
-    +'<linearGradient id="caf" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FBBF24" stop-opacity=".4"/><stop offset="100%" stop-color="#FBBF24" stop-opacity=".02"/></linearGradient></defs>';
+    +'<linearGradient id="caf" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FBBF24" stop-opacity=".4"/><stop offset="100%" stop-color="#FBBF24" stop-opacity=".02"/></linearGradient>'
+    +'<linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6EE7B7" stop-opacity=".55"/><stop offset="55%" stop-color="#C8A24B" stop-opacity=".22"/><stop offset="100%" stop-color="#EF4444" stop-opacity=".16"/></linearGradient></defs>';
   let body='';
   if(chartType==='bars'){
     const n=24, bw=CW/n*0.62;
@@ -1184,14 +1188,16 @@ function chartSvg(){
     body+='<path d="'+baseLine+'" fill="none" stroke="'+gc+'" stroke-width="2" stroke-dasharray="4 4" opacity=".8" style="filter:drop-shadow(0 0 3px '+toRGBA(gc,.5)+')"/>';
     body+='<path d="'+totLine+'" fill="none" stroke="#FBBF24" stroke-width="2.2" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(251,191,36,.6))"/>';
   } else {
+    // Graph Lab "04 · stepped area": white glowing line over a height→color fill
+    // (green at high readiness, red at low). Stepped instead of smooth.
     const pts=CURVE.map(p=>[xOf(p.t),yOf(p.e)]);
-    const line=smoothPath(pts);
-    body+='<path d="'+line+' L'+CW+' '+(CH-PADB)+' L0 '+(CH-PADB)+' Z" fill="url(#area)"/>';
-    body+='<path d="'+line+'" fill="none" stroke="'+gc+'" stroke-width="2.4" stroke-linecap="round" style="filter:drop-shadow(0 0 5px '+gcShadow+')"/>';
+    const step=stepPath(pts);
+    body+='<path d="'+step+' L'+CW+' '+(CH-PADB)+' L0 '+(CH-PADB)+' Z" fill="url(#hgrad)"/>';
+    body+='<path d="'+step+'" fill="none" stroke="#E9EFE9" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(233,239,233,.85))"/>';
   }
   // peak marker dot
   let pk='';
-  if(PEAK){ const px=xOf(PEAK.t),py=yOf(PEAK.e); pk='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="4.5" fill="#0b110e" stroke="'+gc+'" stroke-width="2"/>'; }
+  if(PEAK){ const px=xOf(PEAK.t),py=yOf(PEAK.e); const dotC=(chartType==='line')?'#E9EFE9':gc; pk='<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="4.5" fill="#0b110e" stroke="'+dotC+'" stroke-width="2"/>'; }
   return '<svg class="chartSvg" id="chartSvg" viewBox="0 0 '+CW+' '+CH+'" preserveAspectRatio="none">'+defs+gridLines()+taskBands()+armRectSvg()+sleepMarkers()+crashMarkers()+body+pk+'</svg>';
 }
 function crashMarkers(){ const cc=caffeineCrash(), mc=medCrash(); let s='';
