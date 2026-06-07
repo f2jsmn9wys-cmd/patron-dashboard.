@@ -57,6 +57,7 @@ window.PatronDB = (function () {
       || k === TS_KEY || k === PH_KEY
       || k === 'patron_theme'                   // theme is a per-device preference
       || k === 'peak_schedule_v1'               // schedule is regenerated from the file (seed) — never sync stale tasks
+      || k === 'po_sched_purged'                // per-device flag for the one-time cloud schedule purge
       || k.indexOf('patron_hydrated_') === 0
       || k.indexOf('patron_initreload_') === 0
       || k.indexOf('patron_snapadopt_') === 0;
@@ -184,6 +185,18 @@ window.PatronDB = (function () {
     if (!ready) return;
     (async function () {
       await _reconcile(true);
+      // one-time purge: the legacy peak_schedule_v1 key used to ride in the cloud
+      // blob and kept syncing a stale 6am schedule back onto every device. _gather()
+      // now skips it, so a single forced push replaces the cloud snapshot with a
+      // clean one. Runs once per device; the flag itself is excluded from sync.
+      try {
+        if (localStorage.getItem('po_sched_purged') !== 'v1') {
+          localStorage.removeItem('peak_schedule_v1');
+          localStorage.removeItem('patron_db_peaksched');
+          await _pushNow();
+          localStorage.setItem('po_sched_purged', 'v1');
+        }
+      } catch (_) {}
       setInterval(_pushIfChanged, 2500);
       window.addEventListener('storage', _schedulePush);
       function refresh() { if (!document.hidden) _reconcile(true); }
