@@ -469,6 +469,78 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
  * we build a daily "overall" score and an hour-by-hour energy curve.
  * All scores reuse the suite's real calculation logic.
  * ============================================================ */
+/* ============================================================
+ * PEAK_BG — 10 self-contained, CSS-animated dashboard backgrounds.
+ * Shared by Graph Lab (live previews + copy code) and Peak (apply).
+ * A theme code carries {bgAnim:'<id>'}; PEAK_BG.apply(id) paints it
+ * behind everything; PEAK_BG.preview(el,id) renders a tile preview.
+ * ============================================================ */
+window.PEAK_BG = (function(){
+  var CSS = ""
+  + "#peakBg{position:fixed;inset:0;z-index:-3;pointer-events:none;background:#000}"
+  + "body.pbgOn .page::before{background:none!important}body.pbgOn{background:#04060a}"
+  + ".pbgBase{overflow:hidden;background:#04060a}.pbgBase>*{position:absolute;inset:-25%;will-change:transform,opacity,filter}"
+  // 1 aurora
+  + ".bg-aurora .a{background:radial-gradient(40% 50% at 28% 32%,rgba(110,231,183,.55),transparent 62%),radial-gradient(42% 52% at 72% 40%,rgba(124,58,237,.5),transparent 62%),radial-gradient(46% 48% at 50% 74%,rgba(34,211,238,.45),transparent 62%);filter:blur(55px);animation:pAur 17s ease-in-out infinite alternate}"
+  + "@keyframes pAur{0%{transform:translate(-6%,-4%) rotate(0deg) scale(1.05)}100%{transform:translate(7%,6%) rotate(10deg) scale(1.2)}}"
+  // 2 starfield
+  + ".bg-stars{background:radial-gradient(circle at 50% 40%,#0a1230,#02040a 70%)}"
+  + ".bg-stars .s{background-image:radial-gradient(1.4px 1.4px at 12% 22%,#fff,transparent),radial-gradient(1.2px 1.2px at 32% 67%,#cfe,transparent),radial-gradient(1.6px 1.6px at 58% 18%,#fff,transparent),radial-gradient(1px 1px at 72% 52%,#9cf,transparent),radial-gradient(1.5px 1.5px at 85% 78%,#fff,transparent),radial-gradient(1px 1px at 45% 88%,#fff,transparent),radial-gradient(1.3px 1.3px at 8% 80%,#fff,transparent),radial-gradient(1px 1px at 92% 30%,#ffd,transparent);background-size:cover;animation:pTwk 4s ease-in-out infinite alternate}"
+  + ".bg-stars .s2{background-image:radial-gradient(1px 1px at 22% 42%,#fff,transparent),radial-gradient(1px 1px at 64% 72%,#fff,transparent),radial-gradient(1px 1px at 78% 12%,#fff,transparent),radial-gradient(1px 1px at 38% 28%,#bdf,transparent);animation:pDrift 40s linear infinite}"
+  + "@keyframes pTwk{0%{opacity:.45}100%{opacity:1}}@keyframes pDrift{0%{transform:translateY(0)}100%{transform:translateY(14%)}}"
+  // 3 nebula
+  + ".bg-nebula .n{background:radial-gradient(35% 35% at 30% 35%,rgba(168,85,247,.5),transparent 60%),radial-gradient(30% 40% at 68% 30%,rgba(236,72,153,.45),transparent 60%),radial-gradient(40% 40% at 55% 72%,rgba(34,211,238,.4),transparent 60%);filter:blur(45px) saturate(1.3);animation:pNeb 30s linear infinite}"
+  + "@keyframes pNeb{0%{transform:rotate(0deg) scale(1.2)}100%{transform:rotate(360deg) scale(1.2)}}"
+  // 4 synthwave grid
+  + ".bg-grid{background:linear-gradient(180deg,#1a0530 0%,#06010f 55%)}"
+  + ".bg-grid .g{inset:0;top:55%;background-image:linear-gradient(rgba(236,72,153,.55) 2px,transparent 2px),linear-gradient(90deg,rgba(34,211,238,.45) 2px,transparent 2px);background-size:48px 48px;transform:perspective(340px) rotateX(68deg);transform-origin:center top;animation:pGrid 1.6s linear infinite}"
+  + ".bg-grid .sun{inset:auto;left:50%;top:20%;width:240px;height:240px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,#fbbf24,#f97316 55%,transparent 70%);filter:blur(2px);opacity:.85}"
+  + "@keyframes pGrid{0%{background-position:0 0}100%{background-position:0 48px}}"
+  // 5 plasma
+  + ".bg-plasma .p{background:radial-gradient(30% 30% at 25% 30%,#22d3ee,transparent 60%),radial-gradient(30% 30% at 75% 35%,#a855f7,transparent 60%),radial-gradient(35% 35% at 50% 75%,#ec4899,transparent 60%),radial-gradient(30% 30% at 20% 80%,#6ee7b7,transparent 60%);filter:blur(50px);mix-blend-mode:screen;animation:pPlas 14s ease-in-out infinite alternate,pHue 22s linear infinite}"
+  + "@keyframes pPlas{0%{transform:translate(-6%,-5%) scale(1.1)}100%{transform:translate(7%,6%) scale(1.35)}}@keyframes pHue{0%{filter:blur(50px) hue-rotate(0deg)}100%{filter:blur(50px) hue-rotate(360deg)}}"
+  // 6 mesh
+  + ".bg-mesh .m{background:radial-gradient(28% 28% at 30% 30%,rgba(52,211,153,.6),transparent 60%),radial-gradient(26% 26% at 70% 40%,rgba(59,130,246,.55),transparent 60%),radial-gradient(30% 30% at 45% 70%,rgba(168,85,247,.5),transparent 60%);filter:blur(40px);animation:pMesh 12s ease-in-out infinite alternate}"
+  + "@keyframes pMesh{0%{transform:translate(-4%,-3%) scale(1.05) rotate(-4deg)}100%{transform:translate(5%,4%) scale(1.25) rotate(6deg)}}"
+  // 7 rain
+  + ".bg-rain{background:linear-gradient(180deg,#0b1220,#04060c)}"
+  + ".bg-rain .r{background-image:repeating-linear-gradient(105deg,transparent 0 16px,rgba(125,211,252,.18) 16px 17px,transparent 17px 30px);animation:pRain .7s linear infinite}"
+  + "@keyframes pRain{0%{transform:translateY(-10%)}100%{transform:translateY(10%)}}"
+  // 8 orbs
+  + ".bg-orbs{background:radial-gradient(circle at 50% 50%,#0a0f1e,#03050b 75%)}"
+  + ".bg-orbs .o{background:radial-gradient(8px 8px at 20% 30%,rgba(110,231,183,.9),transparent 70%),radial-gradient(12px 12px at 70% 55%,rgba(124,58,237,.85),transparent 70%),radial-gradient(6px 6px at 45% 80%,rgba(34,211,238,.9),transparent 70%),radial-gradient(10px 10px at 85% 25%,rgba(236,72,153,.8),transparent 70%);filter:blur(2px) drop-shadow(0 0 14px rgba(110,231,183,.5));animation:pOrb 16s ease-in-out infinite alternate}"
+  + "@keyframes pOrb{0%{transform:translate(-4%,-6%)}100%{transform:translate(6%,5%)}}"
+  // 9 waves
+  + ".bg-waves{background:linear-gradient(180deg,#021018,#030a12)}"
+  + ".bg-waves .w{background:repeating-linear-gradient(180deg,transparent 0 38px,rgba(45,212,191,.10) 38px 40px);animation:pWave 7s ease-in-out infinite alternate}"
+  + ".bg-waves .w2{background:radial-gradient(60% 30% at 50% 60%,rgba(34,211,238,.25),transparent 70%);filter:blur(30px);animation:pWave2 9s ease-in-out infinite alternate}"
+  + "@keyframes pWave{0%{transform:translateY(-3%) skewY(-2deg)}100%{transform:translateY(3%) skewY(2deg)}}@keyframes pWave2{0%{transform:translate(-6%,2%)}100%{transform:translate(6%,-2%)}}"
+  // 10 embers
+  + ".bg-embers{background:radial-gradient(circle at 50% 120%,#3a1206,#0a0402 70%)}"
+  + ".bg-embers .e{background-image:radial-gradient(2px 2px at 20% 90%,#fbbf24,transparent),radial-gradient(2px 2px at 40% 95%,#f97316,transparent),radial-gradient(1.5px 1.5px at 60% 92%,#fb7185,transparent),radial-gradient(2px 2px at 80% 96%,#fbbf24,transparent),radial-gradient(1.5px 1.5px at 30% 88%,#f59e0b,transparent),radial-gradient(2px 2px at 70% 85%,#f97316,transparent);animation:pEmb 6s linear infinite}"
+  + "@keyframes pEmb{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(-120%);opacity:0}}";
+  var LIST = [
+    {id:'aurora', name:'Aurora',     html:'<div class="a"></div>'},
+    {id:'stars',  name:'Starfield',  html:'<div class="s"></div><div class="s2"></div>'},
+    {id:'nebula', name:'Nebula',     html:'<div class="n"></div>'},
+    {id:'grid',   name:'Synthwave',  html:'<div class="sun"></div><div class="g"></div>'},
+    {id:'plasma', name:'Plasma',     html:'<div class="p"></div>'},
+    {id:'mesh',   name:'Mesh',       html:'<div class="m"></div>'},
+    {id:'rain',   name:'Rain',       html:'<div class="r"></div>'},
+    {id:'orbs',   name:'Orbs',       html:'<div class="o"></div>'},
+    {id:'waves',  name:'Waves',      html:'<div class="w"></div><div class="w2"></div>'},
+    {id:'embers', name:'Embers',     html:'<div class="e"></div>'}
+  ];
+  function ensureCss(){ if(document.getElementById('peakBgCss'))return; var s=document.createElement('style'); s.id='peakBgCss'; s.textContent=CSS; document.head.appendChild(s); }
+  function def(id){ for(var i=0;i<LIST.length;i++) if(LIST[i].id===id) return LIST[i]; return null; }
+  function apply(id){ ensureCss(); var el=document.getElementById('peakBg'); var d=def(id);
+    if(!d){ if(el)el.parentNode.removeChild(el); if(document.body)document.body.classList.remove('pbgOn'); return; }
+    if(!el){ el=document.createElement('div'); el.id='peakBg'; document.body.appendChild(el); }
+    el.className='pbgBase bg-'+d.id; el.innerHTML=d.html; if(document.body)document.body.classList.add('pbgOn'); }
+  function preview(container,id){ ensureCss(); var d=def(id); container.className='pbgPrev pbgBase bg-'+id; container.innerHTML=d?d.html:''; }
+  return { CSS:CSS, LIST:LIST, apply:apply, preview:preview, def:def };
+})();
+
 function readLS(k){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null; }catch(e){ return null; } }
 // per-render caches (the energy curve reads these hundreds of times) — cleared at the top of render()
 let _hl,_prof,_stim,_feelC,_med,_recHist,_hrvB,_rhrB,_sdebt,_smoker,_hab,_chrono;
@@ -788,7 +860,7 @@ const SCHED='peak_schedule_v1'; let planOpen=false;
  * stale saved tasks once (the file is the source of truth, like the style),
  * while still letting you add/drag/edit in Peak afterwards (your edits save
  * under today's key with the current seed and win until the next day or ship). */
-const SCHED_SEED='lab-2026-06-07Q-PEAK';
+const SCHED_SEED='lab-2026-06-07R-BGPACK';
 const DEFAULT_SCHED=[];
 /* one-time cleanup: physically drop a schedule saved by an older build (seed
  * mismatch) so stale/overlapping tasks can't linger in localStorage. */
@@ -837,14 +909,14 @@ try{ localStorage.removeItem('peak_sched_style_v1'); }catch(e){}
  * theme (peak_theme_v1) is an explicit, user-chosen OVERRIDE that wins until
  * they reset. (Different from the old auto Send-to-Peak key we still nuke.) */
 const PEAK_THEME='peak_theme_v1';
-function loadTheme(){ try{ const t=JSON.parse(localStorage.getItem(PEAK_THEME)||'null'); return (t&&(t.style||t.bg||t.graph))?t:null; }catch(e){ return null; } }
+function loadTheme(){ try{ const t=JSON.parse(localStorage.getItem(PEAK_THEME)||'null'); return (t&&(t.style||t.bg||t.graph||t.bgAnim))?t:null; }catch(e){ return null; } }
 /* the energy-curve look — defaults to the shipped "stepped area" design; a pasted
  * Graph Lab code (lab:'graph') overrides any of: color, line, glow, variant, height-color. */
 function graphStyle(){ const t=loadTheme(); const g=(t&&t.graph)||{};
   return { color:(typeof g.color==='string'&&g.color)?g.color:'#E9EFE9', line:(g.line!=null?+g.line:3), glow:(g.glow!==false), variant:String(g.variant||'stepped area').toLowerCase(), heightColor:(g.heightColor!=null?!!g.heightColor:true), hiC:g.hiC||'#6EE7B7', loC:g.loC||'#EF4444', backdrop:String(g.backdrop||'none').toLowerCase() }; }
 function schedStyle(){ const t=loadTheme(); const s=Object.assign({},SCHED_STYLE_DEFAULT,(t&&t.style)||{}); s.diff=Object.assign({},SCHED_STYLE_DEFAULT.diff,(t&&t.style&&t.style.diff)||{}); return s; }
 function graphColor(){ const c=schedStyle().acc; return (typeof c==='string'&&c)?c:'#34D399'; }   // the energy-curve line/area/dot color = the theme accent
-function applyThemeBg(){ const t=loadTheme(); const r=document.documentElement; if(t&&t.bg){ r.style.setProperty('--bg',t.bg); } else { r.style.removeProperty('--bg'); } }
+function applyThemeBg(){ const t=loadTheme(); const r=document.documentElement; if(t&&t.bg){ r.style.setProperty('--bg',t.bg); } else { r.style.removeProperty('--bg'); } if(window.PEAK_BG){ PEAK_BG.apply(t&&t.bgAnim); } }
 /* PEAK-THEME:<base64 json> → {style, bg, tasks?}. Returns true on success. */
 function normGraph(c){ return { color:c.color||null, line:(c.line!=null?+c.line:null), glow:(c.glow!==false), variant:c.variant||c.animate||'line', heightColor:!!c.heightColor, hiC:c.hiC||null, loC:c.loC||null, backdrop:c.backdrop||c.bg||'none' }; }
 /* the chart backdrop (Graph Lab "BACKDROP": aurora/particles/mountains/stars/grid/dots),
@@ -864,8 +936,8 @@ function importThemeCode(code){ try{
     // 1) Schedule Lab theme (base64): graph color + background + card style + tasks
     if(/^PEAK-?THEME:/i.test(raw)){
       const cfg=JSON.parse(decodeURIComponent(escape(atob(raw.replace(/^PEAK-?THEME:?/i,'').trim()))));
-      if(!cfg||(!cfg.style&&!cfg.bg&&!cfg.tasks))return false;
-      const t=loadTheme()||{v:1}; t.style=cfg.style||{}; t.bg=cfg.bg||null; localStorage.setItem(PEAK_THEME, JSON.stringify(t));
+      if(!cfg||(!cfg.style&&!cfg.bg&&!cfg.tasks&&!cfg.bgAnim))return false;
+      const t=loadTheme()||{v:1}; t.style=cfg.style||{}; t.bg=cfg.bg||null; t.bgAnim=cfg.bgAnim||null; localStorage.setItem(PEAK_THEME, JSON.stringify(t));
       if(Array.isArray(cfg.tasks)&&cfg.tasks.length && confirm('Also replace your schedule with the creator’s tasks?')){
         const tasks=cfg.tasks.map(t2=>({ id:t2.id||('k_'+Math.random().toString(36).slice(2,8)), label:t2.label||t2.name||'Task', start:t2.start, end:t2.end, durH:t2.durH||((t2.end!=null&&t2.start!=null)?t2.end-t2.start:1), color:t2.color, icon:t2.icon, diff:t2.diff||'med', locked:(t2.locked!=null?!!t2.locked:!!t2.explicit), explicit:(t2.explicit!=null?!!t2.explicit:(t2.start!=null)), gap:!!t2.gap, size:t2.size, rStart:(t2.rStart!=null?t2.rStart:null), rEnd:(t2.rEnd!=null?t2.rEnd:null) }));
         saveSched(tasks);

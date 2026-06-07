@@ -189,9 +189,93 @@
   @media (prefers-reduced-motion: reduce) {
     .plot * { animation:none !important; stroke-dashoffset:0 !important; transform:none !important; opacity:1 !important; clip-path:none !important; }
   }
+
+  /* ---- Dashboard Backgrounds section ---- */
+  .bgSection{ max-width:1100px; margin:34px auto 70px; padding:0 24px; }
+  .bgSection h2{ font-family:var(--mono); font-size:13px; letter-spacing:.2em; text-transform:uppercase; color:var(--mint); margin:0 0 6px; font-weight:600; }
+  .bgSection p.bgs{ font-family:var(--mono); font-size:12px; color:#8a8a8a; margin:0 0 18px; line-height:1.5; }
+  .bgGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:16px; }
+  .bgTile{ position:relative; height:140px; border:1px solid var(--line); border-radius:14px; overflow:hidden; cursor:pointer; transition:border-color .2s,transform .2s; }
+  .bgTile:hover{ border-color:var(--mint); transform:translateY(-2px); }
+  .pbgPrev{ position:absolute; inset:0; }
+  .pbgName{ position:absolute; left:12px; bottom:10px; z-index:3; font-family:var(--mono); font-size:12px; letter-spacing:.05em; color:#fff; text-shadow:0 1px 6px #000; }
+  .pbgCopy{ position:absolute; right:10px; top:10px; z-index:3; font-family:var(--mono); font-size:11px; color:#fff; background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.28); border-radius:8px; padding:5px 11px; cursor:pointer; }
+  .pbgCopy:hover{ background:rgba(0,0,0,.82); border-color:#fff; }
 </style>
 </head>
 <body>
+<script>/* ============================================================
+ * PEAK_BG — 10 self-contained, CSS-animated dashboard backgrounds.
+ * Shared by Graph Lab (live previews + copy code) and Peak (apply).
+ * A theme code carries {bgAnim:'<id>'}; PEAK_BG.apply(id) paints it
+ * behind everything; PEAK_BG.preview(el,id) renders a tile preview.
+ * ============================================================ */
+window.PEAK_BG = (function(){
+  var CSS = ""
+  + "#peakBg{position:fixed;inset:0;z-index:-3;pointer-events:none;background:#000}"
+  + "body.pbgOn .page::before{background:none!important}body.pbgOn{background:#04060a}"
+  + ".pbgBase{overflow:hidden;background:#04060a}.pbgBase>*{position:absolute;inset:-25%;will-change:transform,opacity,filter}"
+  // 1 aurora
+  + ".bg-aurora .a{background:radial-gradient(40% 50% at 28% 32%,rgba(110,231,183,.55),transparent 62%),radial-gradient(42% 52% at 72% 40%,rgba(124,58,237,.5),transparent 62%),radial-gradient(46% 48% at 50% 74%,rgba(34,211,238,.45),transparent 62%);filter:blur(55px);animation:pAur 17s ease-in-out infinite alternate}"
+  + "@keyframes pAur{0%{transform:translate(-6%,-4%) rotate(0deg) scale(1.05)}100%{transform:translate(7%,6%) rotate(10deg) scale(1.2)}}"
+  // 2 starfield
+  + ".bg-stars{background:radial-gradient(circle at 50% 40%,#0a1230,#02040a 70%)}"
+  + ".bg-stars .s{background-image:radial-gradient(1.4px 1.4px at 12% 22%,#fff,transparent),radial-gradient(1.2px 1.2px at 32% 67%,#cfe,transparent),radial-gradient(1.6px 1.6px at 58% 18%,#fff,transparent),radial-gradient(1px 1px at 72% 52%,#9cf,transparent),radial-gradient(1.5px 1.5px at 85% 78%,#fff,transparent),radial-gradient(1px 1px at 45% 88%,#fff,transparent),radial-gradient(1.3px 1.3px at 8% 80%,#fff,transparent),radial-gradient(1px 1px at 92% 30%,#ffd,transparent);background-size:cover;animation:pTwk 4s ease-in-out infinite alternate}"
+  + ".bg-stars .s2{background-image:radial-gradient(1px 1px at 22% 42%,#fff,transparent),radial-gradient(1px 1px at 64% 72%,#fff,transparent),radial-gradient(1px 1px at 78% 12%,#fff,transparent),radial-gradient(1px 1px at 38% 28%,#bdf,transparent);animation:pDrift 40s linear infinite}"
+  + "@keyframes pTwk{0%{opacity:.45}100%{opacity:1}}@keyframes pDrift{0%{transform:translateY(0)}100%{transform:translateY(14%)}}"
+  // 3 nebula
+  + ".bg-nebula .n{background:radial-gradient(35% 35% at 30% 35%,rgba(168,85,247,.5),transparent 60%),radial-gradient(30% 40% at 68% 30%,rgba(236,72,153,.45),transparent 60%),radial-gradient(40% 40% at 55% 72%,rgba(34,211,238,.4),transparent 60%);filter:blur(45px) saturate(1.3);animation:pNeb 30s linear infinite}"
+  + "@keyframes pNeb{0%{transform:rotate(0deg) scale(1.2)}100%{transform:rotate(360deg) scale(1.2)}}"
+  // 4 synthwave grid
+  + ".bg-grid{background:linear-gradient(180deg,#1a0530 0%,#06010f 55%)}"
+  + ".bg-grid .g{inset:0;top:55%;background-image:linear-gradient(rgba(236,72,153,.55) 2px,transparent 2px),linear-gradient(90deg,rgba(34,211,238,.45) 2px,transparent 2px);background-size:48px 48px;transform:perspective(340px) rotateX(68deg);transform-origin:center top;animation:pGrid 1.6s linear infinite}"
+  + ".bg-grid .sun{inset:auto;left:50%;top:20%;width:240px;height:240px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,#fbbf24,#f97316 55%,transparent 70%);filter:blur(2px);opacity:.85}"
+  + "@keyframes pGrid{0%{background-position:0 0}100%{background-position:0 48px}}"
+  // 5 plasma
+  + ".bg-plasma .p{background:radial-gradient(30% 30% at 25% 30%,#22d3ee,transparent 60%),radial-gradient(30% 30% at 75% 35%,#a855f7,transparent 60%),radial-gradient(35% 35% at 50% 75%,#ec4899,transparent 60%),radial-gradient(30% 30% at 20% 80%,#6ee7b7,transparent 60%);filter:blur(50px);mix-blend-mode:screen;animation:pPlas 14s ease-in-out infinite alternate,pHue 22s linear infinite}"
+  + "@keyframes pPlas{0%{transform:translate(-6%,-5%) scale(1.1)}100%{transform:translate(7%,6%) scale(1.35)}}@keyframes pHue{0%{filter:blur(50px) hue-rotate(0deg)}100%{filter:blur(50px) hue-rotate(360deg)}}"
+  // 6 mesh
+  + ".bg-mesh .m{background:radial-gradient(28% 28% at 30% 30%,rgba(52,211,153,.6),transparent 60%),radial-gradient(26% 26% at 70% 40%,rgba(59,130,246,.55),transparent 60%),radial-gradient(30% 30% at 45% 70%,rgba(168,85,247,.5),transparent 60%);filter:blur(40px);animation:pMesh 12s ease-in-out infinite alternate}"
+  + "@keyframes pMesh{0%{transform:translate(-4%,-3%) scale(1.05) rotate(-4deg)}100%{transform:translate(5%,4%) scale(1.25) rotate(6deg)}}"
+  // 7 rain
+  + ".bg-rain{background:linear-gradient(180deg,#0b1220,#04060c)}"
+  + ".bg-rain .r{background-image:repeating-linear-gradient(105deg,transparent 0 16px,rgba(125,211,252,.18) 16px 17px,transparent 17px 30px);animation:pRain .7s linear infinite}"
+  + "@keyframes pRain{0%{transform:translateY(-10%)}100%{transform:translateY(10%)}}"
+  // 8 orbs
+  + ".bg-orbs{background:radial-gradient(circle at 50% 50%,#0a0f1e,#03050b 75%)}"
+  + ".bg-orbs .o{background:radial-gradient(8px 8px at 20% 30%,rgba(110,231,183,.9),transparent 70%),radial-gradient(12px 12px at 70% 55%,rgba(124,58,237,.85),transparent 70%),radial-gradient(6px 6px at 45% 80%,rgba(34,211,238,.9),transparent 70%),radial-gradient(10px 10px at 85% 25%,rgba(236,72,153,.8),transparent 70%);filter:blur(2px) drop-shadow(0 0 14px rgba(110,231,183,.5));animation:pOrb 16s ease-in-out infinite alternate}"
+  + "@keyframes pOrb{0%{transform:translate(-4%,-6%)}100%{transform:translate(6%,5%)}}"
+  // 9 waves
+  + ".bg-waves{background:linear-gradient(180deg,#021018,#030a12)}"
+  + ".bg-waves .w{background:repeating-linear-gradient(180deg,transparent 0 38px,rgba(45,212,191,.10) 38px 40px);animation:pWave 7s ease-in-out infinite alternate}"
+  + ".bg-waves .w2{background:radial-gradient(60% 30% at 50% 60%,rgba(34,211,238,.25),transparent 70%);filter:blur(30px);animation:pWave2 9s ease-in-out infinite alternate}"
+  + "@keyframes pWave{0%{transform:translateY(-3%) skewY(-2deg)}100%{transform:translateY(3%) skewY(2deg)}}@keyframes pWave2{0%{transform:translate(-6%,2%)}100%{transform:translate(6%,-2%)}}"
+  // 10 embers
+  + ".bg-embers{background:radial-gradient(circle at 50% 120%,#3a1206,#0a0402 70%)}"
+  + ".bg-embers .e{background-image:radial-gradient(2px 2px at 20% 90%,#fbbf24,transparent),radial-gradient(2px 2px at 40% 95%,#f97316,transparent),radial-gradient(1.5px 1.5px at 60% 92%,#fb7185,transparent),radial-gradient(2px 2px at 80% 96%,#fbbf24,transparent),radial-gradient(1.5px 1.5px at 30% 88%,#f59e0b,transparent),radial-gradient(2px 2px at 70% 85%,#f97316,transparent);animation:pEmb 6s linear infinite}"
+  + "@keyframes pEmb{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(-120%);opacity:0}}";
+  var LIST = [
+    {id:'aurora', name:'Aurora',     html:'<div class="a"></div>'},
+    {id:'stars',  name:'Starfield',  html:'<div class="s"></div><div class="s2"></div>'},
+    {id:'nebula', name:'Nebula',     html:'<div class="n"></div>'},
+    {id:'grid',   name:'Synthwave',  html:'<div class="sun"></div><div class="g"></div>'},
+    {id:'plasma', name:'Plasma',     html:'<div class="p"></div>'},
+    {id:'mesh',   name:'Mesh',       html:'<div class="m"></div>'},
+    {id:'rain',   name:'Rain',       html:'<div class="r"></div>'},
+    {id:'orbs',   name:'Orbs',       html:'<div class="o"></div>'},
+    {id:'waves',  name:'Waves',      html:'<div class="w"></div><div class="w2"></div>'},
+    {id:'embers', name:'Embers',     html:'<div class="e"></div>'}
+  ];
+  function ensureCss(){ if(document.getElementById('peakBgCss'))return; var s=document.createElement('style'); s.id='peakBgCss'; s.textContent=CSS; document.head.appendChild(s); }
+  function def(id){ for(var i=0;i<LIST.length;i++) if(LIST[i].id===id) return LIST[i]; return null; }
+  function apply(id){ ensureCss(); var el=document.getElementById('peakBg'); var d=def(id);
+    if(!d){ if(el)el.parentNode.removeChild(el); if(document.body)document.body.classList.remove('pbgOn'); return; }
+    if(!el){ el=document.createElement('div'); el.id='peakBg'; document.body.appendChild(el); }
+    el.className='pbgBase bg-'+d.id; el.innerHTML=d.html; if(document.body)document.body.classList.add('pbgOn'); }
+  function preview(container,id){ ensureCss(); var d=def(id); container.className='pbgPrev pbgBase bg-'+id; container.innerHTML=d?d.html:''; }
+  return { CSS:CSS, LIST:LIST, apply:apply, preview:preview, def:def };
+})();
+</script>
   <div class="topbar">
     <h1>Graph Lab</h1>
     <div class="nav">
@@ -249,6 +333,11 @@
   </div>
 
   <div class="grid" id="grid"></div>
+  <div class="bgSection">
+    <h2>Dashboard Backgrounds</h2>
+    <p class="bgs">10 animated backgrounds for the whole Peak dashboard. Click a tile (or "copy"), then paste the code into Peak &rarr; "Import a creator theme".</p>
+    <div class="bgGrid" id="bgGrid"></div>
+  </div>
 
 <script>
 /* ---------- datasets (values 0..1, one per hour 0..24) ---------- */
@@ -550,6 +639,21 @@ document.getElementById('bg').addEventListener('change', function(){ state.bg = 
 applyColorVars();
 applyBackdrops();
 replayAll();
+/* ---- Dashboard Backgrounds: live previews + copy PEAK-THEME codes ---- */
+(function(){
+  var grid=document.getElementById('bgGrid'); if(!grid||!window.PEAK_BG)return;
+  PEAK_BG.LIST.forEach(function(b){
+    var tile=document.createElement('div'); tile.className='bgTile';
+    var prev=document.createElement('div'); tile.appendChild(prev);
+    var nm=document.createElement('span'); nm.className='pbgName'; nm.textContent=b.name; tile.appendChild(nm);
+    var cp=document.createElement('button'); cp.className='pbgCopy'; cp.textContent='copy'; tile.appendChild(cp);
+    grid.appendChild(tile);
+    PEAK_BG.preview(prev, b.id);
+    var codeStr='PEAK-THEME:'+btoa(JSON.stringify({bgAnim:b.id}));
+    cp.addEventListener('click', function(ev){ ev.stopPropagation(); copyText(codeStr, cp); });
+    tile.addEventListener('click', function(){ copyText(codeStr, cp); });
+  });
+})();
 </script>
 </body>
 </html>
