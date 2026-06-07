@@ -743,7 +743,7 @@ function diffOf(s){ if(/\b(hard|intense|deep|heavy|max|pr|grind)\b/i.test(s))ret
  * the Lab's "Send to Peak" button writes — so you can re-style without a
  * redeploy. The Lab's config object maps 1:1 onto these keys.
  * -------------------------------------------------------------------- */
-const SCHED_STYLE_DEFAULT={ fill:'grad', op:0.18, rad:10, colorMode:'auto', acc:'#6EE7B7', pill:'glass', pos:'top', bd:true, icon:true, dur:true, now:true, valcol:false, diff:{ easy:'#6EE7B7', med:'#F59E0B', hard:'#FF50A6' } };
+const SCHED_STYLE_DEFAULT={ fill:'solid', op:0.22, rad:8, colorMode:'task', acc:'#6EE7B7', pill:'solid', pos:'top', bd:true, icon:true, dur:true, now:true, valcol:false, diff:{ easy:'#6EE7B7', med:'#F59E0B', hard:'#FF50A6' } };
 function schedStyle(){ const o=readLS('peak_sched_style_v1'); const s=Object.assign({},SCHED_STYLE_DEFAULT,(o&&typeof o==='object')?o:{}); s.diff=Object.assign({},SCHED_STYLE_DEFAULT.diff,(o&&o.diff)||{}); return s; }
 function hex2rgb(h){ h=String(h||'').replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); const n=parseInt(h,16); return isFinite(n)?[(n>>16)&255,(n>>8)&255,n&255]:[110,231,183]; }
 function toRGBA(css,a){ let c; if(typeof css==='string'&&css[0]==='#')c=hex2rgb(css); else { const m=String(css).match(/\d+/g); c=m?[+m[0],+m[1],+m[2]]:[110,231,183]; } return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
