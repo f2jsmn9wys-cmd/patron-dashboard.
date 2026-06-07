@@ -1,8 +1,21 @@
 # Liam — a self-hosted personal dashboard
 
-A suite of nine single-file apps tied together by one bento **hub** (`index.html`),
+A suite of single-file apps tied together by one bento **hub** (`index.html`),
 one design system ("Patron" — soft-dark electric-violet), and one shared theme.
 Fork it, deploy it (or just open it), make it yours.
+
+### 💻 Download & run it on your own computer (no install, no account)
+
+1. **Download the ZIP:** [**Download Liam**](https://github.com/liamwiseeEEEee/Patron-Rowan4/archive/refs/heads/main.zip)
+   _(or use the green **Code ▾** button at the top of the repo → **Download ZIP**)._
+2. **Unzip** the file you downloaded.
+3. Open the unzipped folder and **double-click `index.html`** — it opens in your browser and you're in.
+
+That's the whole thing. Everything runs locally in your browser and your data is saved
+on your own device (browser storage) — nothing is uploaded. **Peak, Enhancers, Food &
+Water, Schedule Lab, Macros, Goals, Progress, Water and the rest all work fully offline.**
+The only things that need the hosted version are live fitness-band sync (Whoop/Fitbit/Apple)
+and cross-device cloud sync, which require the server — see **`SETUP.md`**.
 
 ### 🚀 Get your own copy live in one click
 
