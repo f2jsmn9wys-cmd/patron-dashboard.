@@ -762,7 +762,7 @@ const SCHED='peak_schedule_v1'; let planOpen=false;
  * stale saved tasks once (the file is the source of truth, like the style),
  * while still letting you add/drag/edit in Peak afterwards (your edits save
  * under today's key with the current seed and win until the next day or ship). */
-const SCHED_SEED='lab-2026-06-07h';
+const SCHED_SEED='lab-2026-06-07i';
 const DEFAULT_SCHED=[
   { id:'t1', label:'Morning',   start:6,    end:8,    durH:2,   color:'#6EE7B7', icon:'☀', diff:'easy', locked:true,  explicit:true, gap:false },
   { id:'t2', label:'Claude',    start:9,    end:11.5, durH:2.5, color:'#A78BFA', icon:'✦', diff:'med',  locked:false, explicit:true, gap:false },
@@ -851,12 +851,23 @@ function freeGaps(list){ const {wake,bed}=wakeBed(); let t=wake; const gaps=[];
  * easy task (target lowest) would otherwise get sucked into that dawn ramp and
  * land at ~6:45. We never auto-place there; if nothing fits past dayStart we
  * relax the floor, then fall back. */
+/* end of the rising "dawn ramp": the first time after waking where the circadian
+ * BASE energy has climbed to within ~82% of the day's peak. A fixed wake+1.5h floor
+ * fails when wake is early (the ramp can still be crossing the mid-60s at 6:45, which
+ * is exactly where a medium task wants to land — the 6:45 bug). Tracking the actual
+ * plateau excludes the whole ramp regardless of wake time. Capped at wake+5h so a flat
+ * curve still yields a sane floor; never earlier than wake+1.5h. */
+function dawnFloor(){ const {wake,bed}=wakeBed();
+  let peak=0; for(let t=wake;t<=bed;t+=0.25){ const b=energyAt(t).base; if(b>peak)peak=b; }
+  const thresh=peak*0.82, hardCap=Math.min(bed-0.25,wake+5), soft=wake+1.5;
+  for(let t=wake;t<=hardCap;t+=0.25){ if(energyAt(t).base>=thresh) return Math.max(soft,t); }
+  return Math.min(soft,hardCap); }
 function bestSlot(list,durH,diff){ durH=Math.max(0.25,durH||1); const {wake,bed}=wakeBed();
   const score=avg=> diff==='hard'?avg : diff==='easy'?(100-avg) : (100-Math.abs(avg-65));
   function scan(lb){ let best=null,bestScore=-1e9;
     freeGaps(list).forEach(g=>{ const lo=Math.max(g[0],lb); for(let st=lo; st+durH<=g[1]+1e-6; st+=0.25){ let sum=0,n=0; for(let t=st;t<st+durH;t+=0.25){ sum+=energyAt(t).e; n++; } const sc=score(sum/(n||1)); if(sc>bestScore){ bestScore=sc; best=st; } } });
     return best; }
-  let best=scan(wake+1.5); if(best==null)best=scan(wake);  // honour the dawn floor, else relax it
+  let best=scan(dawnFloor()); if(best==null)best=scan(wake);  // honour the dawn floor, else relax it
   if(best==null){ best=list.length?Math.min(bed-durH,Math.max.apply(null,list.map(x=>x.end))):wake; best=Math.max(wake,Math.min(best,bed-durH)); }
   return Math.round(best*4)/4;
 }
