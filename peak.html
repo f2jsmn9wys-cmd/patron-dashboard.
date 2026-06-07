@@ -176,6 +176,7 @@ body{ background:var(--bg); color:var(--fg); font-family:var(--ui); -webkit-font
 .scrubTip{ position:absolute; transform:translate(-50%,-130%); background:var(--panel2); border:1px solid var(--line2); border-radius:10px; padding:8px 12px; pointer-events:none; display:none; white-space:nowrap; backdrop-filter:blur(8px); }
 .scrubTip .v{ font-family:var(--serif); font-style:italic; font-size:18px; color:var(--accent); }
 .scrubTip .l{ font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:1px; }
+.dragTime{ position:absolute; bottom:34px; transform:translateX(-50%); display:none; background:var(--panel2); border:1px solid var(--accent2); border-radius:8px; padding:5px 11px; font-family:var(--mono); font-size:12px; font-weight:600; color:var(--accent2); white-space:nowrap; pointer-events:none; z-index:7; box-shadow:0 4px 14px rgba(0,0,0,.55); }
 .sleepMarks{ position:absolute; top:0; left:0; right:0; height:0; pointer-events:none; }
 .sleepMark{ position:absolute; top:-6px; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:.04em; color:var(--muted2); white-space:nowrap; background:var(--panel2); border:1px solid var(--line2); border-radius:7px; padding:3px 8px; }
 /* live "now" marker on the graph (ported from Schedule Lab): value bubble + dot + line, plus the bedtime moon */
@@ -774,7 +775,7 @@ const SCHED='peak_schedule_v1'; let planOpen=false;
  * stale saved tasks once (the file is the source of truth, like the style),
  * while still letting you add/drag/edit in Peak afterwards (your edits save
  * under today's key with the current seed and win until the next day or ship). */
-const SCHED_SEED='lab-2026-06-07M-NOAUTO';
+const SCHED_SEED='lab-2026-06-07N-SMART';
 const DEFAULT_SCHED=[];
 /* one-time cleanup: physically drop a schedule saved by an older build (seed
  * mismatch) so stale/overlapping tasks can't linger in localStorage. */
@@ -805,7 +806,7 @@ function sanitizeSched(tasks){ if(!Array.isArray(tasks))return tasks;
   return result.concat(gaps).sort((a,b)=>((a.start==null?1e9:a.start)-(b.start==null?1e9:b.start))); }
 function loadSched(){ const r=readLS(SCHED); const tasks=(r&&r.seed===SCHED_SEED&&r.day===dKey()&&Array.isArray(r.tasks))?r.tasks:DEFAULT_SCHED.map(t=>Object.assign({},t)); return sanitizeSched(tasks); }
 function saveSched(tasks){ try{ localStorage.setItem(SCHED,JSON.stringify({day:dKey(),seed:SCHED_SEED,tasks})); }catch(e){} if(window.PatronDB&&PatronDB.isCloud())PatronDB.set('peaksched',{day:dKey(),seed:SCHED_SEED,tasks}); render(); }
-function diffOf(s){ if(/\b(hard|intense|deep|heavy|max|pr|grind)\b/i.test(s))return 'hard'; if(/\b(easy|chill|light|admin|rest|relax|recover)\b/i.test(s))return 'easy'; return 'med'; }
+function diffOf(s){ if(/\b(high|hard|intense|deep|heavy|max|pr|grind)\b/i.test(s))return 'hard'; if(/\b(low|easy|chill|light|admin|rest|relax|recover)\b/i.test(s))return 'easy'; return 'med'; }
 /* ----------------------------------------------------------------------
  * Schedule visual style — the "model" you design in Schedule Lab.
  * SCHED_STYLE_DEFAULT is the SINGLE SOURCE OF TRUTH: whatever the Lab is set
@@ -894,7 +895,7 @@ function parseTask(str){
     if(dur){ const n=+dur[1]; durH=/^m/i.test(dur[2])?n/60:n; s=s.replace(dur[0],' '); }
     durH=durH||1; if(explicit){ end=start+durH; }
   }
-  s=s.replace(/\b(hard|intense|deep|heavy|max|pr|grind|easy|chill|light|admin|rest|relax|recover|medium|med|moderate|fill|full|at|from)\b/ig,' ').replace(/\s+/g,' ').trim();
+  s=s.replace(/\b(high|low|mid|hard|intense|deep|heavy|max|pr|grind|easy|chill|light|admin|rest|relax|recover|medium|med|moderate|fill|full|at|from)\b/ig,' ').replace(/[,;]/g,' ').replace(/\s+/g,' ').trim();
   return {id:'k_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),label:(s||'Task'),diff,color:diffColor(diff),durH:durH||1,explicit,locked:explicit,start,end,fill:fillFlag};
 }
 function taskDur(t){ return (t&&t.durH&&t.durH>0)?t.durH:((t&&t.start!=null&&t.end!=null)?Math.max(0.25,t.end-t.start):1); }
@@ -936,7 +937,8 @@ function dawnFloor(){ const {wake,bed}=wakeBed();
   for(let t=wake;t<=hardCap;t+=0.25){ if(energyAt(t).base>=thresh) return Math.max(soft,t); }
   return Math.min(soft,hardCap); }
 function bestSlot(list,durH,diff){ durH=Math.max(0.25,durH||1); const {wake,bed}=wakeBed();
-  const score=avg=> diff==='hard'?avg : diff==='easy'?(100-avg) : (100-Math.abs(avg-65));
+  let _ms=0,_mn=0; for(let _t=wake;_t<=bed;_t+=0.25){ _ms+=energyAt(_t).e; _mn++; } const mean=_ms/(_mn||1);
+  const score=avg=> diff==='hard'?avg : diff==='easy'?(100-avg) : (100-Math.abs(avg-mean));
   function scan(lb){ let best=null,bestScore=-1e9;
     freeGaps(list).forEach(g=>{ const lo=Math.max(g[0],lb); for(let st=lo; st+durH<=g[1]+1e-6; st+=0.25){ let sum=0,n=0; for(let t=st;t<st+durH;t+=0.25){ sum+=energyAt(t).e; n++; } const sc=score(sum/(n||1)); if(sc>bestScore){ bestScore=sc; best=st; } } });
     return best; }
@@ -963,6 +965,17 @@ function snapFree(desired,dur,others){
   fit.forEach(g=>{ const s=clamp(desired,g[0],g[1]-dur); const d=Math.abs(s-desired); if(d<bd){ bd=d; best=s; } });
   return Math.round(best*4)/4;
 }
+/* Free drag placement: snap to the nearest 15-min mark anywhere on the graph (no dawn
+ * floor — you're choosing the time), and if it lands on another task, shift RIGHT to the
+ * next open 15-min slot (then left as a fallback) so nothing ever overlaps. */
+function snapDrag(desired,dur,others){
+  const lo=0, hi=Math.max(0,24-dur); let s=clamp(Math.round(desired*4)/4, lo, hi);
+  const hits=x=>others.some(o=>o.start!=null && x<o.end-1e-6 && x+dur>o.start+1e-6);
+  if(!hits(s)) return s;
+  for(let x=s; x<=hi+1e-6; x+=0.25){ if(!hits(x)) return Math.round(x*4)/4; }
+  for(let x=s; x>=lo-1e-6; x-=0.25){ if(!hits(x)) return Math.round(x*4)/4; }
+  return s;
+}
 /* best-energy start for a task INSIDE an armed window [lo,hi] — same hard→peak /
  * easy→low / med→mid scoring as bestSlot, but scoped to the window and skipping
  * any sub-range already taken by another task. null = nothing of length dur fits. */
@@ -980,11 +993,11 @@ function placeInWindow(p,lo,hi,list){ const others=list.filter(x=>x&&!x.gap&&x.s
   const dur=Math.max(0.25,Math.min(taskDur(p),hi-lo));
   let st=bestStartIn(lo,hi,dur,p.diff,others); if(st==null)st=snapFree(lo,dur,others);
   p.start=st; p.end=Math.min(24,st+dur); p.durH=p.end-p.start; p.explicit=true; return p; }
-function addSched(str, win){ if(!str||!str.trim())return; schErr=''; const tasks=loadSched(); str.split(/,|;|\band\b/i).forEach(pStr=>{ const p=parseTask(pStr); if(!p)return;
-    if(p.gap){ if(win){ p.rStart=win[0]; p.rEnd=win[1]; } tasks.push(p); return; }
-    if(win){ placeInWindow(p, win[0], win[1], tasks.filter(x=>!x.gap)); }
-    else if(!p.explicit||p.start==null){ schErr='Add a time to "'+String(p.label||'it').replace(/"/g,'')+'" — e.g. "'+String(p.label||'task')+' 8-9" or "'+String(p.label||'task')+' 1430".'; return; } else { p.start=((p.start%24)+24)%24; p.end=Math.max(p.start+0.25,Math.min(24,p.end)); }
-    tasks.push(p); });
+function addSched(str, win){ if(!str||!str.trim())return; schErr=''; const tasks=loadSched(); const p=parseTask(str); if(!p){ saveSched(tasks); return; }
+    if(p.gap){ if(win){ p.rStart=win[0]; p.rEnd=win[1]; } tasks.push(p); }
+    else if(win){ placeInWindow(p, win[0], win[1], tasks.filter(x=>!x.gap)); tasks.push(p); }
+    else if(!p.explicit||p.start==null){ placeTask(p,tasks.filter(x=>!x.gap)); tasks.push(p); }   // intensity -> energy level
+    else { p.start=((p.start%24)+24)%24; p.end=Math.max(p.start+0.25,Math.min(24,p.end)); tasks.push(p); }
   tasks.sort((a,b)=>(a.start==null?99:a.start)-(b.start==null?99:b.start)); saveSched(tasks); }
 function regapTask(id){ const tasks=loadSched(); const t=tasks.find(x=>x.id===id); if(!t||t.gap)return; placeTask(t,tasks.filter(x=>!x.gap&&x.id!==id)); saveSched(tasks); }
 /* workout suggestion from gym history */
@@ -1065,8 +1078,8 @@ function bindTaskDrag(){ const wrap=document.getElementById('chartWrap'), svg=do
     e.preventDefault(); const id=el.dataset.taskid; const tasks=loadSched(); const t=tasks.find(x=>x.id===id); if(!t)return;
     if(t.locked!=null?t.locked:t.explicit){ return; } // locked tasks stay put — unlock to drag
     const dur=taskDur(t); const others=tasks.filter(x=>!x.gap&&x.id!==id); const r=svg.getBoundingClientRect(); el.classList.add('dragging'); let ns=t.start; const tm=el.querySelector('.pillTm');
-    function move(ev){ if(ev.cancelable)ev.preventDefault(); const x=clamp(((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)/r.width,0,1); let st=x*24-dur/2; ns=snapFree(st,dur,others); el.style.left=clamp(((ns+dur/2)/24)*100,7,93)+'%'; if(tm)tm.textContent=fmtRange(ns,ns+dur); }
-    function up(){ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',up); el.classList.remove('dragging'); t.start=ns; t.end=Math.min(24,ns+dur); t.durH=dur; t.explicit=true; tasks.sort((a,b)=>a.start-b.start); saveSched(tasks); }
+    function move(ev){ if(ev.cancelable)ev.preventDefault(); const x=clamp(((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)/r.width,0,1); let st=x*24-dur/2; ns=snapDrag(st,dur,others); el.style.left=clamp(((ns+dur/2)/24)*100,7,93)+'%'; if(tm)tm.textContent=fmtRange(ns,ns+dur); const _dt=document.getElementById('dragTime'); if(_dt){ _dt.style.display='block'; _dt.style.left=clamp(((ns+dur/2)/24)*100,6,94)+'%'; _dt.textContent=fmtRange(ns,ns+dur); } }
+    function up(){ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',up); el.classList.remove('dragging'); const _dt=document.getElementById('dragTime'); if(_dt)_dt.style.display='none'; t.start=ns; t.end=Math.min(24,ns+dur); t.durH=dur; t.explicit=true; t.locked=false; tasks.sort((a,b)=>a.start-b.start); saveSched(tasks); }
     document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
     document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',up);
   }); }); }
@@ -1124,7 +1137,7 @@ function scheduleHtml(){
     +(themeOpen?'<div class="schThemeRow"><textarea id="themeCode" class="schThemeIn" placeholder="Paste a theme or graph code…" rows="2" autocomplete="off"></textarea><button class="schThemeApply" data-themeapply="1">Apply</button></div>'
       +'<div class="schThemeHint">Paste a Schedule Lab <b>theme code</b> (color, background, cards) or a Graph Lab <b>graph code</b> (bars, stepped, dotted, glow)'+(_hasTheme?' <button class="schThemeReset" data-themereset="1">· reset to default</button>':'')+'</div>':'')
     +'</div>';
-  const input='<div class="schInputRow"><input id="schInput" class="schInput" placeholder="e.g. school 8-2, gym 1930 hard, gap claude" autocomplete="off"><button class="schAdd" data-addsched="1">＋ Add</button></div><div class="schHint">every task needs a time, e.g. "gym 8-9" or "reel 1430" · “big gap claude” fills your whole free day · “small gap homework” fills only the short windows between tasks · gaps never touch sleep · easy/medium/hard = color <span style="opacity:.6">· build '+SCHED_SEED+'</span></div>'+themeBlock;
+  const input='<div class="schInputRow"><input id="schInput" class="schInput" placeholder="e.g. Focused work, 1h, high" autocomplete="off"><button class="schAdd" data-addsched="1">＋ Add</button></div><div class="schHint">type: name, length, intensity — e.g. "Focused work, 1h, high" · high=peak energy · mid=average · low=quiet hour · drag to move · “big gap claude” fills your whole free day · “small gap homework” fills only the short windows between tasks · gaps never touch sleep · easy/medium/hard = color <span style="opacity:.6">· build '+SCHED_SEED+'</span></div>'+themeBlock;
   // workout nudge: you've trained recently but not today
   const wOut = (!gymLoggedToday() && gymDaysLast7()>=1) ? '<div class="schWorkout"><button class="schWoBtn" data-workout="1">🏋️ You’ve been training — work out today?</button>'+(workoutOpen?'<div class="schWoOpts">'+[['45m',0.75],['1h',1],['1h 30m',1.5],['2h',2]].map(o=>'<button class="schWoOpt" data-addworkout="'+o[1]+'">'+o[0]+'</button>').join('')+'</div>':'')+'</div>' : '';
   const row = tasks.length ? '<div class="schRow">'+tasks.map(t=>{ const time = t.gap ? (t.rStart!=null?clockOf(t.rStart)+'–'+clockOf(t.rEnd):(t.size==='small'?'small gaps':'fills day')) : clockOf(t.start);
@@ -1501,7 +1514,7 @@ function render(){
     +'<div class="sleepMarks"><div class="sleepMark" style="left:'+clamp(sp.wake/24*100,5,95)+'%">☀️ '+clockOf(sp.wake)+'</div></div>'
     +'<div class="schBands" id="schBands">'+schOverlayHtml()+'</div>'
     +'<div class="crashMarks">'+crashLabels+'</div>'
-    +'<div class="scrubLine" id="scrubLine"></div><div class="scrubDot" id="scrubDot"></div><div class="scrubTip" id="scrubTip"></div></div>'
+    +'<div class="scrubLine" id="scrubLine"></div><div class="scrubDot" id="scrubDot"></div><div class="scrubTip" id="scrubTip"></div><div class="dragTime" id="dragTime"></div></div>'
     +'<div class="xAxis">'+X_LABELS.map(l=>'<span>'+l+'</span>').join('')+'</div>'
     +'<div class="plan">'+planLaneHtml()+'</div>'
     +'</div>';
