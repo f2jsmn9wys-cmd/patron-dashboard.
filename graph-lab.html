@@ -68,6 +68,8 @@
   .card .tag { position:absolute; top:12px; left:14px; z-index:3; font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--muted); }
   .card .replay { position:absolute; top:11px; right:14px; z-index:3; font-size:11px; color:var(--c); opacity:.55; font-family:var(--mono); }
   .card:hover .replay { opacity:1; }
+  .card .copy { position:absolute; top:11px; right:76px; z-index:3; font-size:11px; color:var(--c); opacity:.55; font-family:var(--mono); cursor:pointer; }
+  .card:hover .copy { opacity:1; } .card .copy:hover { text-decoration:underline; }
   .plot { position:relative; z-index:2; width:100%; aspect-ratio:1000/320; display:block; }
   .plot svg { width:100%; height:100%; display:block; overflow:visible; }
 
@@ -243,7 +245,6 @@
     <label class="toggle"><input type="checkbox" id="hc" /> height→color</label>
     <div class="grp"><label>High</label><input id="hiC" type="color" value="#6EE7B7" /></div>
     <div class="grp"><label>Low</label><input id="loC" type="color" value="#EF4444" /></div>
-    <button class="btn" id="copyDesign" style="background:transparent;border:1px solid var(--mint);color:var(--mint)" title="Copy this graph design as a shareable code (plain-English + JSON) — paste it to a person or an AI and they can rebuild it, no screenshot needed">📋 Copy design</button>
     <button class="btn" id="replayAll">Replay all ⟳</button>
   </div>
 
@@ -477,10 +478,17 @@ function applyColorVars() {
 var cards = STYLES.map(function (style) {
   var card = document.createElement('div');
   card.className = 'card';
-  card.innerHTML = '<div class="bg"></div><div class="scrim"></div><span class="tag">'+style.name+'</span><span class="replay">replay ⟳</span><div class="plot"></div>';
+  card.innerHTML = '<div class="bg"></div><div class="scrim"></div><span class="tag">'+style.name+'</span><span class="copy">copy</span><span class="replay">replay ⟳</span><div class="plot"></div>';
   var plot = card.querySelector('.plot');
   var bg = card.querySelector('.bg');
   card.addEventListener('click', function () { playOne(style, plot); });
+  var copyEl = card.querySelector('.copy');
+  copyEl.addEventListener('click', function(ev){ ev.stopPropagation(); var s=state;
+    var col=(s.color&&s.color.c)?s.color.c:s.color, colName=(s.color&&s.color.name)?s.color.name:col;
+    var human='GRAPH DESIGN — "'+style.name+'" · '+colName+' ('+col+'), line '+s.lw+', glow '+(s.glow?'on':'off')+', '+(s.smooth?'smooth':'sharp')+', '+String(s.anim).replace('an-','')+' animation, speed '+s.speed+'x, backdrop '+s.bg;
+    var json=JSON.stringify({lab:'graph',variant:style.name,color:col,line:s.lw,glow:s.glow,smooth:s.smooth,animate:String(s.anim).replace('an-',''),speed:s.speed,backdrop:s.bg,d3:s.d3,tilt:s.tilt,parallax:s.parallax,heightColor:s.heightColor,hiC:s.hiC,loC:s.loC,data:s.data});
+    copyText(human+'\n'+json, copyEl);
+  });
   card.addEventListener('mousemove', function (e) {
     if (!state.parallax || state.bg === 'none' || state.bg === 'grid') return;
     var r = card.getBoundingClientRect();
@@ -535,13 +543,8 @@ document.getElementById('loC').addEventListener('input', function(){ state.loC =
 document.getElementById('replayAll').addEventListener('click', replayAll);
 /* Copy this graph design as a shareable, self-describing code (human line + JSON).
  * No screenshot needed — the values fully define the look. */
-function copyText(t, btn){ function ok(){ if(btn){ var o=btn.textContent; btn.textContent='✓ Copied'; setTimeout(function(){ btn.textContent=o; }, 1500); } }
+function copyText(t, btn){ function ok(){ if(btn){ var o=btn.textContent; btn.textContent='✓ copied'; setTimeout(function(){ btn.textContent=o; }, 1400); } }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(ok, function(){ window.prompt('Copy this design:', t); }); } else { window.prompt('Copy this design:', t); } }
-document.getElementById('copyDesign').addEventListener('click', function(){ var s=state;
-  var col=(s.color&&s.color.c)?s.color.c:s.color, colName=(s.color&&s.color.name)?s.color.name:col;
-  var human='GRAPH DESIGN — '+colName+' line ('+col+'), width '+s.lw+', glow '+(s.glow?'on':'off')+', '+(s.smooth?'smooth':'sharp')+', '+String(s.anim).replace('an-','')+' animation, speed '+s.speed+'x, backdrop '+s.bg+(s.d3?', 3D tilt '+s.tilt+'°':'')+(s.heightColor?', height→color '+s.hiC+'/'+s.loC:'');
-  var json=JSON.stringify({lab:'graph',color:col,line:s.lw,glow:s.glow,smooth:s.smooth,animate:String(s.anim).replace('an-',''),speed:s.speed,backdrop:s.bg,d3:s.d3,tilt:s.tilt,parallax:s.parallax,heightColor:s.heightColor,hiC:s.hiC,loC:s.loC,data:s.data});
-  copyText(human+'\n'+json, this); });
 document.getElementById('bg').addEventListener('change', function(){ state.bg = this.value; applyBackdrops(); });
 
 applyColorVars();
