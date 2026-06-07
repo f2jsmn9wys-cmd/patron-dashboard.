@@ -243,6 +243,7 @@
     <label class="toggle"><input type="checkbox" id="hc" /> height→color</label>
     <div class="grp"><label>High</label><input id="hiC" type="color" value="#6EE7B7" /></div>
     <div class="grp"><label>Low</label><input id="loC" type="color" value="#EF4444" /></div>
+    <button class="btn" id="copyDesign" style="background:transparent;border:1px solid var(--mint);color:var(--mint)" title="Copy this graph design as a shareable code (plain-English + JSON) — paste it to a person or an AI and they can rebuild it, no screenshot needed">📋 Copy design</button>
     <button class="btn" id="replayAll">Replay all ⟳</button>
   </div>
 
@@ -532,6 +533,15 @@ document.getElementById('hc').addEventListener('change', function(){ state.heigh
 document.getElementById('hiC').addEventListener('input', function(){ state.hiC = this.value; if(state.heightColor) replayAll(); });
 document.getElementById('loC').addEventListener('input', function(){ state.loC = this.value; if(state.heightColor) replayAll(); });
 document.getElementById('replayAll').addEventListener('click', replayAll);
+/* Copy this graph design as a shareable, self-describing code (human line + JSON).
+ * No screenshot needed — the values fully define the look. */
+function copyText(t, btn){ function ok(){ if(btn){ var o=btn.textContent; btn.textContent='✓ Copied'; setTimeout(function(){ btn.textContent=o; }, 1500); } }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(ok, function(){ window.prompt('Copy this design:', t); }); } else { window.prompt('Copy this design:', t); } }
+document.getElementById('copyDesign').addEventListener('click', function(){ var s=state;
+  var col=(s.color&&s.color.c)?s.color.c:s.color, colName=(s.color&&s.color.name)?s.color.name:col;
+  var human='GRAPH DESIGN — '+colName+' line ('+col+'), width '+s.lw+', glow '+(s.glow?'on':'off')+', '+(s.smooth?'smooth':'sharp')+', '+String(s.anim).replace('an-','')+' animation, speed '+s.speed+'x, backdrop '+s.bg+(s.d3?', 3D tilt '+s.tilt+'°':'')+(s.heightColor?', height→color '+s.hiC+'/'+s.loC:'');
+  var json=JSON.stringify({lab:'graph',color:col,line:s.lw,glow:s.glow,smooth:s.smooth,animate:String(s.anim).replace('an-',''),speed:s.speed,backdrop:s.bg,d3:s.d3,tilt:s.tilt,parallax:s.parallax,heightColor:s.heightColor,hiC:s.hiC,loC:s.loC,data:s.data});
+  copyText(human+'\n'+json, this); });
 document.getElementById('bg').addEventListener('change', function(){ state.bg = this.value; applyBackdrops(); });
 
 applyColorVars();

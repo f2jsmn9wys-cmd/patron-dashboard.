@@ -166,6 +166,7 @@
     </div>
     <label class="ctl">Size <input id="size" type="range" min="20" max="72" value="44" /></label>
     <label class="ctl">Speed <input id="speed" type="range" min="0.4" max="2" step="0.1" value="1" /></label>
+    <button class="btn" id="copyDesign" style="background:transparent;border:1px solid var(--mint);color:var(--mint)" title="Copy this text design as a shareable code (plain-English + JSON) — paste it to a person or an AI and they can rebuild it, no screenshot needed">📋 Copy design</button>
     <button class="btn" id="replayAll">Replay all ⟳</button>
   </div>
 
@@ -294,6 +295,16 @@ textEl.addEventListener('input', replayAll);
 sizeEl.addEventListener('input', function(){ setSize(); });
 speedEl.addEventListener('input', replayAll);
 document.getElementById('replayAll').addEventListener('click', replayAll);
+/* Copy this text design as a shareable, self-describing code (human line + JSON).
+ * No screenshot needed — the values fully define the look. */
+function copyText(t, btn){ function ok(){ if(btn){ var o=btn.textContent; btn.textContent='✓ Copied'; setTimeout(function(){ btn.textContent=o; }, 1500); } }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(ok, function(){ window.prompt('Copy this design:', t); }); } else { window.prompt('Copy this design:', t); } }
+document.getElementById('copyDesign').addEventListener('click', function(){
+  var font=document.body.getAttribute('data-font'), size=document.getElementById('size').value, speed=document.getElementById('speed').value, text=document.getElementById('text').value;
+  var anims=['fade-up','word-stagger','char-stagger','mask-reveal','blur-in','tracking-settle','shine-sweep','char-glow','3d-flip-up','cinematic-rise'];
+  var human='TEXT DESIGN — '+font+' font, size '+size+'px, speed '+speed+'x · sample: "'+text+'" · entrance animations: '+anims.join(', ');
+  var json=JSON.stringify({lab:'text',font:font,size:+size,speed:+speed,sample:text,animations:anims});
+  copyText(human+'\n'+json, this); });
 document.getElementById('fontSeg').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   document.body.setAttribute('data-font', b.dataset.font);
