@@ -70,6 +70,9 @@ body {
 }
 .stage .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 9px var(--accent); animation: stPulse 1.6s ease-in-out infinite; }
 @keyframes stPulse { 0%,100%{ opacity:.5; transform: scale(1) } 50%{ opacity:1; transform: scale(1.25) } }
+.exprRow { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; max-width: 320px; }
+.exprBtn { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .03em; color: #e9ecf5; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 6px 12px; cursor: pointer; transition: .15s; }
+.exprBtn:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); color: #fff; }
 
 .panel {
   border: 1px solid rgba(255,255,255,0.08); border-radius: 22px;
@@ -158,6 +161,7 @@ body {
       <div class="name">Nova</div>
       <div class="role">your mentor</div>
       <div class="status"><span class="dot"></span><span id="statusText">ready when you are</span></div>
+      <div class="exprRow" id="exprRow"></div>
     </section>
 
     <section class="panel">
@@ -332,6 +336,9 @@ body {
       await respond(q);
       await sleep(900);
     }
+    setStatus('showing her faces…');
+    await exprTour();            // run through all 9 expressions for the camera
+    setStatus('ready when you are');
     autoRunning = false; autoBtn.disabled = false; autoBtn.textContent = '▶ Auto-play';
   }
   autoBtn.addEventListener('click', autoPlay);
@@ -358,6 +365,28 @@ body {
     });
     palHost.appendChild(el);
   });
+
+  /* ---- expression picker: all 9 faces from the avatar lab (incl. sleep) ---- */
+  const EXPRESSIONS = [
+    ['neutral', 'Neutral', 0], ['happy', 'Happy', 4], ['sad', 'Sad', 4],
+    ['surprised', 'Surprised', 4], ['thinking', 'Thinking', 4], ['sleepy', '💤 Sleep', 4],
+    ['wink', 'Wink', 3], ['love', '♥ Love', 4], ['star', '★ Star', 4],
+  ];
+  const exprRow = document.getElementById('exprRow');
+  EXPRESSIONS.forEach(([name, label, hold]) => {
+    const b = document.createElement('button'); b.className = 'exprBtn'; b.textContent = label;
+    b.addEventListener('click', () => { if (window.Nova) window.Nova.setExpression(name, hold); });
+    exprRow.appendChild(b);
+  });
+
+  /* ---- expression tour: cycle every face for the camera ---- */
+  async function exprTour(){
+    for (const [name, , hold] of EXPRESSIONS){
+      if (window.Nova) window.Nova.setExpression(name, hold || 2);
+      await sleep(1600);
+    }
+    if (window.Nova) window.Nova.setExpression('neutral');
+  }
 
   (function welcome() {
     const el = document.createElement('div');
