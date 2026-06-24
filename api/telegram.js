@@ -99,18 +99,34 @@ async function classify(text) {
     '{"type":"sleep","hours":<Schlafstunden als Zahl; bei einer Spanne wie "4-5h" den Mittelwert nehmen>}\n' +
     '{"type":"food","name":"<kurze Beschreibung der Mahlzeit/des Lebensmittels>","cal":<geschaetzte kcal>,"p":<Protein g>,"c":<Kohlenhydrate g>,"f":<Fett g>}\n' +
     '{"type":"workout","exercises":[{"name":"<Uebungsname, saubere Standardschreibweise z.B. "Bench Press">","sets":[{"reps":<Zahl>,"weight":<kg als Zahl, 0 falls Koerpergewicht>}]}]}\n' +
+    '{"type":"todo","items":["<Aufgabe 1>","<Aufgabe 2>"]}\n' +
     '{"type":"note","text":"<Originalnachricht oder der Teil davon, leicht aufgeraeumt>"}\n\n' +
+    'LOESCHEN/ZURUECKSETZEN — nur wenn die Nachricht klar eine Loesch-/Korrektur-Absicht ausdrueckt ' +
+    '(Woerter wie "loesche", "entferne", "raus", "zurueck", "abziehen", "weg damit", "stornieren", "rueckgaengig"):\n' +
+    '{"type":"water_delete","glasses":<Anzahl zu entfernender Glaeser; falls nicht genannt: 1>}\n' +
+    '{"type":"weight_delete"} (loescht den heutigen Gewichtseintrag)\n' +
+    '{"type":"sleep_delete"} (loescht den heutigen Schlafeintrag)\n' +
+    '{"type":"food_delete","name":"<optional: welche Mahlzeit; sonst wird die zuletzt eingetragene heutige Mahlzeit geloescht>"}\n' +
+    '{"type":"workout_delete","exercise":"<optional: Uebungsname; sonst werden ALLE heute geloggten Saetze entfernt>"}\n' +
+    '{"type":"todo_delete","text":"<optional: welche Aufgabe; sonst werden ALLE heutigen Todos geloescht>"}\n' +
+    '{"type":"reset_all"} — NUR wenn die Nachricht ausdruecklich verlangt, WIRKLICH ALLES zurueckzusetzen/zu loeschen ' +
+    '(z.B. "loesche alle eintraege komplett", "setze alles auf null/zurueck"). Im Zweifel NICHT reset_all nehmen, sondern note.\n\n' +
     'Regeln:\n' +
     '- "food" ist fuer einzelne Mahlzeiten/Snacks ("habe einen Apfel gegessen", "Mittagessen: Hühnchen mit Reis"), NICHT für allgemeine Ernaehrungsfragen.\n' +
     '- "workout" ist fuer Trainingseinheiten/Saetze, egal ob ein einzelner Satz ("Bankdruecken 80kg x8") oder ein ganzes eingefuegtes Workout ' +
     'mit mehreren Uebungen/Zeilen (z.B. eine Liste "Uebung Saetzexwdh@gewicht" pro Zeile). Erkenne JEDE Zeile als eigene Uebung mit ihren Saetzen.\n' +
+    '- "todo" ist fuer Aufgaben/Vorhaben fuer heute ("speichere diese todos fuer heute: einkaufen, anrufen", "ich muss noch X erledigen").\n' +
     '- Schaetze bei "food" realistische Makros nach bestem Wissen, auch wenn die Mahlzeit nur grob beschrieben ist.\n' +
     '- Wenn ein Teil der Nachricht zu keiner bekannten Kategorie passt oder alles unklar/eine reine Beobachtung ist, nimm "note" dafuer.\n\n' +
     'Beispiele:\n' +
     '"Habe heute 2L Wasser getrunken und mein Gewicht ist bei 99" -> [{"type":"water","glasses":8},{"type":"weight","kg":99}]\n' +
     '"habe 5h geschlafen" -> [{"type":"sleep","hours":5}]\n' +
     '"normalerweise schlafe ich so 4-5h" -> [{"type":"sleep","hours":4.5}]\n' +
-    '"Bankdruecken 3x8 80kg\\nKniebeuge 3x5 100kg" -> [{"type":"workout","exercises":[{"name":"Bench Press","sets":[{"reps":8,"weight":80},{"reps":8,"weight":80},{"reps":8,"weight":80}]},{"name":"Squat","sets":[{"reps":5,"weight":100},{"reps":5,"weight":100},{"reps":5,"weight":100}]}]}]';
+    '"Bankdruecken 3x8 80kg\\nKniebeuge 3x5 100kg" -> [{"type":"workout","exercises":[{"name":"Bench Press","sets":[{"reps":8,"weight":80},{"reps":8,"weight":80},{"reps":8,"weight":80}]},{"name":"Squat","sets":[{"reps":5,"weight":100},{"reps":5,"weight":100},{"reps":5,"weight":100}]}]}]\n' +
+    '"loesche drei glaeser wasser raus" -> [{"type":"water_delete","glasses":3}]\n' +
+    '"loesche meinen schlaf heute" -> [{"type":"sleep_delete"}]\n' +
+    '"speichere diese todos fuer heute: waesche waschen, einkaufen" -> [{"type":"todo","items":["Wäsche waschen","Einkaufen"]}]\n' +
+    '"loesche alle eintraege komplett, alles auf null" -> [{"type":"reset_all"}]';
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
@@ -288,6 +304,159 @@ async function applyAction(action) {
     if (!summaries.length) return '⚠️ Konnte aus dem Workout keine gültigen Sätze herauslesen.';
     await sbUpsert('po-coach', state);
     return `🏋️ Workout gespeichert${createdCount ? ` (${createdCount} neue Übung/en angelegt)` : ''}:\n` + summaries.join('\n');
+  }
+
+  if (action.type === 'todo') {
+    const items = Array.isArray(action.items) ? action.items.filter(Boolean) : [];
+    if (!items.length) return '⚠️ Keine Todos gefunden.';
+    const key = 'goals:' + todayKey();
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let list;
+    try { list = JSON.parse(snap.blob[key] || '[]'); } catch (_) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    items.forEach((text) => list.push({ text: String(text), done: false }));
+    snap.blob[key] = JSON.stringify(list);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return `✅ ${items.length} Todo(s) für heute gespeichert: ${items.join(', ')}.`;
+  }
+
+  if (action.type === 'water_delete') {
+    const glasses = Math.max(1, Math.round(Number(action.glasses) || 1));
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let water;
+    try { water = JSON.parse(snap.blob.water_standalone_v1 || '{}'); } catch (_) { water = {}; }
+    water.logs = water.logs || {};
+    const k = todayKey();
+    water.logs[k] = Math.max(0, (water.logs[k] || 0) - glasses);
+    snap.blob.water_standalone_v1 = JSON.stringify(water);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return `💧 ${glasses} Glas/Gläser entfernt (heute jetzt: ${water.logs[k]}).`;
+  }
+
+  if (action.type === 'weight_delete') {
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let progress;
+    try { progress = JSON.parse(snap.blob['patron_db_patron-progress'] || '{}'); } catch (_) { progress = {}; }
+    progress.entries = Array.isArray(progress.entries) ? progress.entries : [];
+    const k = todayKey();
+    const before = progress.entries.length;
+    progress.entries = progress.entries.filter((e) => e.dateKey !== k);
+    snap.blob['patron_db_patron-progress'] = JSON.stringify(progress);
+    snap.blob.progress_standalone_v1 = JSON.stringify(progress);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return progress.entries.length < before ? '⚖️ Heutiger Gewichtseintrag gelöscht.' : 'ℹ️ Es gab heute keinen Gewichtseintrag zum Löschen.';
+  }
+
+  if (action.type === 'sleep_delete') {
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let health;
+    try { health = JSON.parse(snap.blob.patron_health_v1 || '{}'); } catch (_) { health = {}; }
+    delete health.sleepHours; delete health.sleepPerf;
+    health.ts = Date.now();
+    snap.blob.patron_health_v1 = JSON.stringify(health);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return '😴 Heutiger Schlafeintrag gelöscht.';
+  }
+
+  if (action.type === 'food_delete') {
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let macros;
+    try { macros = JSON.parse(snap.blob.macros_standalone_v1 || '{}'); } catch (_) { macros = {}; }
+    const k = todayKey();
+    const list = Array.isArray(macros[k]) ? macros[k] : [];
+    let removed = null;
+    if (action.name) {
+      const idx = list.findIndex((e) => e.name && e.name.toLowerCase().includes(String(action.name).toLowerCase()));
+      if (idx >= 0) removed = list.splice(idx, 1)[0];
+    } else if (list.length) {
+      removed = list.pop();
+    }
+    macros[k] = list;
+    snap.blob.macros_standalone_v1 = JSON.stringify(macros);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return removed ? `🍽️ "${removed.name}" wieder entfernt.` : 'ℹ️ Keine passende Mahlzeit zum Löschen gefunden.';
+  }
+
+  if (action.type === 'workout_delete') {
+    const state = (await sbGet('po-coach')) || {};
+    const coach = state.po_coach_v1;
+    if (!coach || !coach.logs) return 'ℹ️ Es gibt noch keine Trainings-Logs.';
+    const k = todayKey();
+    let removedCount = 0;
+    const ids = action.exercise
+      ? coach.exercises.filter((e) => e.name && e.name.toLowerCase().includes(String(action.exercise).toLowerCase())).map((e) => e.id)
+      : Object.keys(coach.logs);
+    ids.forEach((id) => {
+      const before = (coach.logs[id] || []).length;
+      coach.logs[id] = (coach.logs[id] || []).filter((l) => !l.date || !l.date.startsWith(k));
+      removedCount += before - coach.logs[id].length;
+    });
+    await sbUpsert('po-coach', state);
+    return removedCount ? `🏋️ ${removedCount} heutige(n) Satz/Sätze gelöscht.` : 'ℹ️ Keine passenden heutigen Sätze gefunden.';
+  }
+
+  if (action.type === 'todo_delete') {
+    const key = 'goals:' + todayKey();
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let list;
+    try { list = JSON.parse(snap.blob[key] || '[]'); } catch (_) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    const before = list.length;
+    list = action.text
+      ? list.filter((g) => !(g.text && g.text.toLowerCase().includes(String(action.text).toLowerCase())))
+      : [];
+    snap.blob[key] = JSON.stringify(list);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return before - list.length > 0 || (!action.text && before > 0) ? '✅ Todo(s) gelöscht.' : 'ℹ️ Keine passenden Todos gefunden.';
+  }
+
+  if (action.type === 'reset_all') {
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let water; try { water = JSON.parse(snap.blob.water_standalone_v1 || '{}'); } catch (_) { water = {}; }
+    water.logs = {};
+    snap.blob.water_standalone_v1 = JSON.stringify(water);
+
+    let progress; try { progress = JSON.parse(snap.blob['patron_db_patron-progress'] || '{}'); } catch (_) { progress = {}; }
+    progress.entries = [];
+    snap.blob['patron_db_patron-progress'] = JSON.stringify(progress);
+    snap.blob.progress_standalone_v1 = JSON.stringify(progress);
+
+    let health; try { health = JSON.parse(snap.blob.patron_health_v1 || '{}'); } catch (_) { health = {}; }
+    delete health.sleepHours; delete health.sleepPerf;
+    snap.blob.patron_health_v1 = JSON.stringify(health);
+
+    let macros; try { macros = JSON.parse(snap.blob.macros_standalone_v1 || '{}'); } catch (_) { macros = {}; }
+    const goalCal = macros.goalCal;
+    macros = goalCal != null ? { goalCal } : {};
+    snap.blob.macros_standalone_v1 = JSON.stringify(macros);
+
+    const todoKey = 'goals:' + todayKey();
+    snap.blob[todoKey] = JSON.stringify([]);
+
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+
+    const state = (await sbGet('po-coach')) || {};
+    if (state.po_coach_v1) { state.po_coach_v1.logs = {}; }
+    state.po_coach_weights = [];
+    await sbUpsert('po-coach', state);
+
+    await sbUpsert('telegram-notes', { items: [] });
+
+    return '🧹 Alles zurückgesetzt: Wasser, Gewicht, Schlaf, Essen, Trainings-Logs, heutige Todos und Notizen sind auf null.';
   }
 
   // Fallback: a running notes log so nothing typed ever gets lost, even if
