@@ -85,27 +85,38 @@ async function transcribeVoice(fileId) {
   return ((tj && tj.text) || '').trim();
 }
 
-// Claude sorts the message into one of a few known shapes. Kept deliberately
-// small (water / weight / note) — easy to extend with the same pattern later
-// (food, finance, supplements, gym sets) once this is proven out.
+// Claude sorts the message into one or more known shapes. A single message
+// can carry several facts at once (water + weight + a workout, etc.) — it
+// always returns a JSON array, one object per fact it found.
 async function classify(text) {
   if (!ANTHROPIC_KEY) return [{ type: 'note', text }];
-  const sys = 'Du ordnest kurze deutsche oder englische Nachrichten einer Tracking-App in eine oder mehrere Kategorien ein. ' +
-    'Eine einzelne Nachricht kann MEHRERE Fakten enthalten (z.B. Wasser UND Gewicht) — gib dann mehrere Objekte zurueck. ' +
-    'Antworte NUR mit einem kompakten JSON-Array, ohne Erklaerung, ohne Markdown-Codeblock.\n' +
-    'Moegliche Objekte im Array:\n' +
+  const sys = 'Du ordnest deutsche oder englische Nachrichten einer Fitness-/Gesundheits-Tracking-App in eine oder mehrere ' +
+    'Kategorien ein. Eine Nachricht kann MEHRERE Fakten enthalten (z.B. Wasser UND Gewicht UND ein Workout) — gib dann ' +
+    'mehrere Objekte zurueck, eines pro Fakt. Antworte NUR mit einem kompakten JSON-Array, ohne Erklaerung, ohne Markdown-Codeblock.\n\n' +
+    'Moegliche Objekte:\n' +
     '{"type":"water","glasses":<Anzahl 250ml-Glaeser; 1 Liter = 4>}\n' +
-    '{"type":"weight","kg":<Zahl>}\n' +
-    '{"type":"note","text":"<Originalnachricht oder der Teil davon, leicht aufgeraeumt>"}\n' +
-    'Wenn ein Teil der Nachricht zu keiner bekannten Kategorie passt oder alles unklar ist, nimm "note" dafuer. ' +
-    'Beispiel Eingabe "Habe heute 2L Wasser getrunken und mein Gewicht ist bei 99" -> ' +
-    '[{"type":"water","glasses":8},{"type":"weight","kg":99}]';
+    '{"type":"weight","kg":<Koerpergewicht als Zahl>}\n' +
+    '{"type":"sleep","hours":<Schlafstunden als Zahl; bei einer Spanne wie "4-5h" den Mittelwert nehmen>}\n' +
+    '{"type":"food","name":"<kurze Beschreibung der Mahlzeit/des Lebensmittels>","cal":<geschaetzte kcal>,"p":<Protein g>,"c":<Kohlenhydrate g>,"f":<Fett g>}\n' +
+    '{"type":"workout","exercises":[{"name":"<Uebungsname, saubere Standardschreibweise z.B. "Bench Press">","sets":[{"reps":<Zahl>,"weight":<kg als Zahl, 0 falls Koerpergewicht>}]}]}\n' +
+    '{"type":"note","text":"<Originalnachricht oder der Teil davon, leicht aufgeraeumt>"}\n\n' +
+    'Regeln:\n' +
+    '- "food" ist fuer einzelne Mahlzeiten/Snacks ("habe einen Apfel gegessen", "Mittagessen: Hühnchen mit Reis"), NICHT für allgemeine Ernaehrungsfragen.\n' +
+    '- "workout" ist fuer Trainingseinheiten/Saetze, egal ob ein einzelner Satz ("Bankdruecken 80kg x8") oder ein ganzes eingefuegtes Workout ' +
+    'mit mehreren Uebungen/Zeilen (z.B. eine Liste "Uebung Saetzexwdh@gewicht" pro Zeile). Erkenne JEDE Zeile als eigene Uebung mit ihren Saetzen.\n' +
+    '- Schaetze bei "food" realistische Makros nach bestem Wissen, auch wenn die Mahlzeit nur grob beschrieben ist.\n' +
+    '- Wenn ein Teil der Nachricht zu keiner bekannten Kategorie passt oder alles unklar/eine reine Beobachtung ist, nimm "note" dafuer.\n\n' +
+    'Beispiele:\n' +
+    '"Habe heute 2L Wasser getrunken und mein Gewicht ist bei 99" -> [{"type":"water","glasses":8},{"type":"weight","kg":99}]\n' +
+    '"habe 5h geschlafen" -> [{"type":"sleep","hours":5}]\n' +
+    '"normalerweise schlafe ich so 4-5h" -> [{"type":"sleep","hours":4.5}]\n' +
+    '"Bankdruecken 3x8 80kg\\nKniebeuge 3x5 100kg" -> [{"type":"workout","exercises":[{"name":"Bench Press","sets":[{"reps":8,"weight":80},{"reps":8,"weight":80},{"reps":8,"weight":80}]},{"name":"Squat","sets":[{"reps":5,"weight":100},{"reps":5,"weight":100},{"reps":5,"weight":100}]}]}]';
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
+      max_tokens: 1200,
       system: sys,
       messages: [{ role: 'user', content: text }],
     }),
@@ -186,6 +197,97 @@ async function applyAction(action) {
     snap.ts = Date.now();
     await sbUpsert('patron-device-snapshot', snap);
     return `⚖️ Gewicht heute auf ${kg}kg eingetragen.`;
+  }
+
+  // Sleep rides under "patron_health_v1" — the suite-wide vitals record also
+  // written by the dashboard's manual-entry form / Apple Watch / Whoop.
+  if (action.type === 'sleep') {
+    const hours = Number(action.hours);
+    if (!hours) return '⚠️ Konnte die Schlafdauer nicht lesen — bitte z.B. "5h geschlafen" schreiben.';
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let health;
+    try { health = JSON.parse(snap.blob.patron_health_v1 || '{}'); } catch (_) { health = {}; }
+    const target = health.sleepTargetHours || 8;
+    health.source = 'manual';
+    health.connected = true;
+    health.ts = Date.now();
+    health.sleepHours = hours;
+    health.sleepPerf = Math.round(Math.min(100, (hours / target) * 100));
+    health.sleepTargetHours = target;
+    snap.blob.patron_health_v1 = JSON.stringify(health);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return `😴 ${hours}h Schlaf eingetragen (${health.sleepPerf}% vom Ziel).`;
+  }
+
+  // Food rides under "macros_standalone_v1": { [dateKey]: [{name,cal,p,c,f}], goalCal }.
+  if (action.type === 'food') {
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let macros;
+    try { macros = JSON.parse(snap.blob.macros_standalone_v1 || '{}'); } catch (_) { macros = {}; }
+    const k = todayKey();
+    macros[k] = Array.isArray(macros[k]) ? macros[k] : [];
+    const entry = {
+      name: action.name || 'Mahlzeit',
+      cal: Math.round(Number(action.cal) || 0),
+      p: Math.round(Number(action.p) || 0),
+      c: Math.round(Number(action.c) || 0),
+      f: Math.round(Number(action.f) || 0),
+    };
+    macros[k].push(entry);
+    snap.blob.macros_standalone_v1 = JSON.stringify(macros);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
+    return `🍽️ "${entry.name}" eingetragen (${entry.cal} kcal, ${entry.p}g P / ${entry.c}g C / ${entry.f}g F).`;
+  }
+
+  // Workouts ride in gym's own row (key "po-coach"), under po_coach_v1's
+  // exercises[] (matched by name, created if new) and logs{} (one entry per set).
+  if (action.type === 'workout' && Array.isArray(action.exercises) && action.exercises.length) {
+    const state = (await sbGet('po-coach')) || {};
+    const coach = state.po_coach_v1 = state.po_coach_v1 || { days: [], gyms: [], exercises: [], logs: {}, units: 'kg' };
+    coach.exercises = Array.isArray(coach.exercises) ? coach.exercises : [];
+    coach.logs = coach.logs && typeof coach.logs === 'object' ? coach.logs : {};
+    const defaultDay = coach.filterDay || (coach.days[0] && coach.days[0].id) || 'push';
+    const defaultGym = coach.filterGym || (coach.gyms[0] && coach.gyms[0].id) || 'home';
+
+    const summaries = [];
+    let createdCount = 0;
+    action.exercises.forEach((ex, exIdx) => {
+      const name = (ex.name || '').trim();
+      if (!name) return;
+      const sets = Array.isArray(ex.sets) ? ex.sets.filter((s) => s && Number(s.reps) > 0) : [];
+      if (!sets.length) return;
+
+      let exObj = coach.exercises.find((e) => e.name && e.name.toLowerCase() === name.toLowerCase());
+      if (!exObj) {
+        const reps = sets.map((s) => Number(s.reps));
+        const weights = sets.map((s) => Number(s.weight) || 0);
+        exObj = {
+          id: 'tg_' + Date.now() + '_' + exIdx,
+          day: defaultDay, gym: defaultGym, name,
+          step: 2.5, repMin: Math.min(...reps), repMax: Math.max(...reps, Math.min(...reps) + 2),
+          startWeight: Math.max(...weights, 0),
+        };
+        coach.exercises.push(exObj);
+        createdCount++;
+      }
+      coach.logs[exObj.id] = Array.isArray(coach.logs[exObj.id]) ? coach.logs[exObj.id] : [];
+      sets.forEach((s, i) => {
+        coach.logs[exObj.id].push({
+          date: new Date(Date.now() + exIdx * 1000 + i).toISOString(),
+          reps: Number(s.reps), weight: Number(s.weight) || 0,
+        });
+      });
+      const topSet = sets.reduce((a, b) => (Number(b.weight) || 0) > (Number(a.weight) || 0) ? b : a, sets[0]);
+      summaries.push(`${name}: ${sets.length} Satz/Sätze (Top ${topSet.weight || 0}kg × ${topSet.reps})`);
+    });
+
+    if (!summaries.length) return '⚠️ Konnte aus dem Workout keine gültigen Sätze herauslesen.';
+    await sbUpsert('po-coach', state);
+    return `🏋️ Workout gespeichert${createdCount ? ` (${createdCount} neue Übung/en angelegt)` : ''}:\n` + summaries.join('\n');
   }
 
   // Fallback: a running notes log so nothing typed ever gets lost, even if
