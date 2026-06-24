@@ -331,14 +331,11 @@ body{ background:#000 !important; font-family:'Inter',-apple-system,sans-serif; 
  * ============================================================ */
 const APPS = [
   { file: 'peak.html',        name: 'PEAK TRACKER', tag: 'Daily readiness · energy curve',        icon: '🔆', wide: true },
-  { file: 'peak-standalone.html', name: 'PEAK · STANDALONE', tag: 'Self-contained · share / download', icon: '📦', wide: true },
   { file: 'finance.html',     name: 'Finance',     tag: 'Net worth · subs · orders · wishlist', icon: '💰', wide: true },
   { file: 'gym.html',         name: 'Gym',         tag: 'Progressive overload coach',           icon: '🏋️', wide: true },
-  { file: 'enhancers.html',   name: 'Enhancers',   tag: 'Supplements · stimulants · meds',       icon: '💊', wide: true },
   { file: 'food.html',        name: 'Food & Water', tag: 'Hydration target · daily macros',       icon: '🥤', wide: true },
   { file: 'fitband.html',     name: 'Fitness Band', tag: 'Recovery · sleep · strain · trends',     icon: '🔋', wide: true },
   { file: 'mentor.html',      name: 'Mentor',      tag: 'Nova · live chat + cozy thinking',       icon: '🌟', wide: true },
-  { file: 'ai-avatar-2.html', name: 'AI Mentor',   tag: 'Nova · 3D avatar + animation kit',      icon: '🪐', wide: true },
   { file: 'creator.html',     name: 'Creator',     tag: 'Schedule · accounts · analytics',       icon: '🎬' },
   { file: 'goals.html',       name: 'Goals',       tag: 'Goals & streaks',                       icon: '🎯' },
   { file: 'progress.html',    name: 'Progress',    tag: 'Photos & measurements',                 icon: '📈' },
@@ -568,7 +565,6 @@ function statFor(file){
   try {
     if (file === 'finance.html') { const s = lsGet('finance_standalone_v1'); if (s && Array.isArray(s.accounts) && s.accounts.length) { const nw = s.accounts.reduce((a,x)=>a+(Number(x.amountCHF)||0),0); return { value: 'CHF ' + fmtNum(nw), label: 'net worth' }; } }
     else if (file === 'supplements.html') { const s = lsGet('supplements_standalone_v1'); if (s && Array.isArray(s.items) && s.items.length) { const tk = (s.taken && s.taken[activeDateKey()]) || {}; const n = s.items.filter(i => tk[i.id]).length; return { value: n + '/' + s.items.length, label: 'taken today' }; } }
-    else if (file === 'enhancers.html') { const s = lsGet('supplements_standalone_v1'); if (s && Array.isArray(s.items) && s.items.length) { const tk = (s.taken && s.taken[activeDateKey()]) || {}; const n = s.items.filter(i => tk[i.id]).length; return { value: n + '/' + s.items.length, label: 'supplements today' }; } const c = lsGet('stimulant_standalone_v1'); if (c && Array.isArray(c.logs)) { const k = localDateKey(); const mg = c.logs.filter(l => l && localDateKey(new Date(l.t)) === k).reduce((a,l)=>a+(Number(l.mg)||0),0); if (mg>0) return { value: mg + ' mg', label: 'caffeine today' }; } }
     else if (file === 'water.html') { const s = lsGet('water_standalone_v1'); if (s && s.logs) { const n = s.logs[localDateKey()] || 0; return { value: String(n), label: (n === 1 ? 'drink' : 'drinks') + ' today' }; } }
     else if (file === 'food.html') { const m = lsGet('macros_standalone_v1'); const log = m && m[localDateKey()]; if (Array.isArray(log) && log.length) { const cal = log.reduce((a,e)=>a+(Number(e.cal)||0),0); return { value: fmtNum(cal), label: 'kcal today' }; } const w = lsGet('water_standalone_v1'); if (w && w.logs) { const n = w.logs[localDateKey()] || 0; if (n>0) return { value: String(n), label: (n === 1 ? 'drink' : 'drinks') + ' today' }; } }
     else if (file === 'stimulant.html') { const s = lsGet('stimulant_standalone_v1'); if (s && Array.isArray(s.logs)) { const k = localDateKey(); const mg = s.logs.filter(l => l && localDateKey(new Date(l.t)) === k).reduce((a,l)=>a+(Number(l.mg)||0),0); if (mg>0) return { value: mg + ' mg', label: 'caffeine today' }; } }
@@ -590,11 +586,8 @@ const ART = {
   'recovery.html':'linear-gradient(135deg,#22D3EE,#34D399)',
   'macros.html':'linear-gradient(135deg,#F59E0B,#EF4444)',
   'peak.html':'linear-gradient(135deg,#34D399,#22D3EE)',
-  'peak-standalone.html':'linear-gradient(135deg,#6EE7B7,#34D399)',
   'meds.html':'linear-gradient(135deg,#34D399,#22D3EE)',
-  'enhancers.html':'linear-gradient(135deg,#6EE7B7,#22D3EE)',
   'food.html':'linear-gradient(135deg,#22D3EE,#6EE7B7)',
-  'ai-avatar-2.html':'linear-gradient(135deg,#67E8F9,#A78BFA)',
   'mentor.html':'linear-gradient(135deg,#6EE7B7,#34D399)',
 };
 function artFor(file){ return ART[file] || 'linear-gradient(135deg,#8B5CF6,#22D3EE)'; }
