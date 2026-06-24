@@ -315,6 +315,24 @@ body{ background:#000 !important; font-family:'Inter',-apple-system,sans-serif; 
 .card:hover{ border-color:rgba(110,231,183,.35) !important; box-shadow:0 0 40px rgba(110,231,183,.08) !important; }
 .cardArtIcon{ transition:transform .24s var(--ease-premium); }
 @media (prefers-reduced-motion:reduce){ .bento .card,.vk-particles span{ animation:none !important; opacity:1 !important; transform:none !important; } }
+
+/* ---- Today panel: todos + weight trend + water/sleep, all at a glance ---- */
+.todayPanel{ position:relative; z-index:1; display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:var(--space-3); margin:0 var(--space-5) var(--space-4); }
+@media (max-width:860px){ .todayPanel{ grid-template-columns:1fr; } }
+.todayCol{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:var(--space-4); min-height:120px; }
+.todayTitle{ font-family:var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 var(--space-3); font-style:normal; }
+.todayEmpty{ font-size:13px; color:var(--muted); margin:0; }
+.todoRow{ display:flex; align-items:center; gap:10px; padding:7px 0; cursor:pointer; font-size:14px; border-bottom:1px solid var(--border); }
+.todoRow:last-child{ border-bottom:0; }
+.todoRow input{ accent-color:var(--brand); width:16px; height:16px; flex:0 0 auto; }
+.todoRow.todoDone span{ color:var(--muted); text-decoration:line-through; }
+.todayChart{ width:100%; height:60px; color:var(--brand); display:block; }
+.todayChartLabel{ margin-top:6px; font-family:var(--font-mono); font-size:20px; color:var(--fg); }
+.todayStatRow{ display:flex; align-items:center; gap:10px; padding:8px 0; }
+.todayStatIcon{ font-size:18px; }
+.todayStatVal{ font-family:var(--font-mono); font-size:16px; color:var(--fg); min-width:42px; }
+.todayStatLabel{ font-size:12px; color:var(--muted); }
+
 </style>
 </head>
 <body>
@@ -681,10 +699,52 @@ function remindersHtml(){
     + items.map(r => '<a class="reminderChip" href="' + r.file + '"><span class="reminderDot"></span><span aria-hidden>' + r.icon + '</span> ' + r.text + ' <span class="reminderGo" aria-hidden>→</span></a>').join('')
     + '</div>';
 }
+/* ---- Today panel: todos + weight trend + water/sleep, all visible without a click ---- */
+function todayTodos(){ try { const l = lsGet('goals:' + localDateKey()); return Array.isArray(l) ? l : []; } catch(e){ return []; } }
+function todayWeightSeries(){
+  try {
+    const p = lsGet('patron_db_patron-progress') || lsGet('progress_standalone_v1');
+    const entries = (p && Array.isArray(p.entries)) ? p.entries.filter(e => e && e.dateKey && typeof e.weightKg === 'number').slice().sort((a,b)=>a.dateKey.localeCompare(b.dateKey)) : [];
+    return entries.slice(-14);
+  } catch(e){ return []; }
+}
+function todayWaterCount(){ try { const s = lsGet('water_standalone_v1'); return (s && s.logs && s.logs[localDateKey()]) || 0; } catch(e){ return 0; } }
+function sparklinePath(values, w, h){
+  if (!values.length) return '';
+  const min = Math.min.apply(null, values), max = Math.max.apply(null, values), range = (max - min) || 1;
+  const stepX = values.length > 1 ? w / (values.length - 1) : 0;
+  return values.map((v, i) => { const x = i * stepX; const y = h - ((v - min) / range) * h; return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1); }).join(' ');
+}
+function todayPanelHtml(){
+  const todos = todayTodos();
+  const todosHtml = todos.length
+    ? todos.map((t, i) => '<label class="todoRow' + (t.done ? ' todoDone' : '') + '"><input type="checkbox" data-action="toggle-todo" data-idx="' + i + '"' + (t.done ? ' checked' : '') + ' /><span>' + esc(t.text) + '</span></label>').join('')
+    : '<p class="todayEmpty">No todos for today — add some in Goals, or just tell the bot.</p>';
+
+  const series = todayWeightSeries();
+  const vals = series.map(e => e.weightKg);
+  const chart = vals.length >= 2
+    ? '<svg class="todayChart" viewBox="0 0 200 50" preserveAspectRatio="none"><path d="' + sparklinePath(vals, 200, 44) + '" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>'
+      + '<div class="todayChartLabel">' + vals[vals.length - 1].toFixed(1) + ' kg</div>'
+    : '<p class="todayEmpty">Log your weight to see a graph here.</p>';
+
+  const water = todayWaterCount();
+  const sleep = (health && health.sleepHours != null) ? health.sleepHours : null;
+
+  return '<section class="todayPanel">'
+    + '<div class="todayCol"><h3 class="todayTitle">Today’s todos</h3>' + todosHtml + '</div>'
+    + '<div class="todayCol"><h3 class="todayTitle">Weight trend</h3>' + chart + '</div>'
+    + '<div class="todayCol"><h3 class="todayTitle">Water &amp; sleep</h3>'
+      + '<div class="todayStatRow"><span class="todayStatIcon">💧</span><span class="todayStatVal">' + water + '</span><span class="todayStatLabel">glasses today</span></div>'
+      + '<div class="todayStatRow"><span class="todayStatIcon">😴</span><span class="todayStatVal">' + (sleep != null ? sleep + 'h' : '—') + '</span><span class="todayStatLabel">last sleep</span></div>'
+      + '</div>'
+    + '</section>';
+}
+
 function render(){
   try { const bn = brandName(); document.title = (bn === 'Dashboard' ? 'Dashboard' : bn + ' · dashboard'); } catch(e){}
   document.getElementById('app').innerHTML =
-    headerHtml() + tickerHtml() + remindersHtml() + '<div class="bento">' + vitalsTileHtml() + APPS.map(cardHtml).join('') + '</div>';
+    headerHtml() + tickerHtml() + remindersHtml() + todayPanelHtml() + '<div class="bento">' + vitalsTileHtml() + APPS.map(cardHtml).join('') + '</div>';
   renderModal();
 }
 
@@ -937,6 +997,13 @@ document.addEventListener('click', e => {
     });
     return;
   }
+  if (action === 'toggle-todo') {
+    const idx = Number(btn.getAttribute('data-idx'));
+    const key = 'goals:' + localDateKey();
+    const list = lsGet(key) || [];
+    if (list[idx]) { list[idx].done = !list[idx].done; try { localStorage.setItem(key, JSON.stringify(list)); } catch(e){} render(); }
+    return;
+  }
   if (action === 'fitbit-sync') { syncFitbit(); return; }
   if (action === 'fitbit-disconnect') {
     fetch('/api/fitbit/logout').catch(()=>{}).then(() => {
@@ -1002,6 +1069,7 @@ applyTheme(currentTheme);
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="db.js?v=15"></script>
 <script src="brand.js?v=16"></script>
+<script src="bottomnav.js"></script>
 <script>
 (function(){
   var root=document.getElementById('vkParticles');
