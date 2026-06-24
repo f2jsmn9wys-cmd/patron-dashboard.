@@ -164,21 +164,24 @@ async function applyAction(action) {
     return `💧 ${glasses} Glas/Gläser Wasser eingetragen (heute insgesamt: ${water.logs[k]}).`;
   }
 
-  // Weight is displayed on the Progress page, which reads its own
-  // "progress_standalone_v1" key ({units, entries:[{dateKey, weightKg}]}) —
-  // that key rides inside the same whole-device snapshot row as water.
+  // Weight is displayed on the Progress page. On load it overrides local
+  // state with PatronDB.get('patron-progress'), which reads localStorage key
+  // "patron_db_patron-progress" — THAT key (not progress_standalone_v1) is
+  // what actually rides in the cloud snapshot and wins on every page load.
   if (action.type === 'weight') {
     const kg = Number(action.kg);
     if (!kg) return '⚠️ Konnte das Gewicht nicht lesen — bitte z.B. "Gewicht 77.5kg" schreiben.';
     const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
     snap.blob = snap.blob || {};
     let progress;
-    try { progress = JSON.parse(snap.blob.progress_standalone_v1 || '{}'); } catch (_) { progress = {}; }
+    try { progress = JSON.parse(snap.blob['patron_db_patron-progress'] || '{}'); } catch (_) { progress = {}; }
     progress.units = progress.units || 'kg';
     progress.entries = Array.isArray(progress.entries) ? progress.entries : [];
     const k = todayKey();
     const idx = progress.entries.findIndex((e) => e.dateKey === k);
     if (idx >= 0) progress.entries[idx].weightKg = kg; else progress.entries.push({ dateKey: k, weightKg: kg });
+    snap.blob['patron_db_patron-progress'] = JSON.stringify(progress);
+    // Also keep the page's own non-cloud-keyed copy in sync for consistency.
     snap.blob.progress_standalone_v1 = JSON.stringify(progress);
     snap.ts = Date.now();
     await sbUpsert('patron-device-snapshot', snap);
