@@ -164,17 +164,24 @@ async function applyAction(action) {
     return `💧 ${glasses} Glas/Gläser Wasser eingetragen (heute insgesamt: ${water.logs[k]}).`;
   }
 
-  // Weight rides in gym's own row (key "po-coach"), under po_coach_weights.
+  // Weight is displayed on the Progress page, which reads its own
+  // "progress_standalone_v1" key ({units, entries:[{dateKey, weightKg}]}) —
+  // that key rides inside the same whole-device snapshot row as water.
   if (action.type === 'weight') {
     const kg = Number(action.kg);
     if (!kg) return '⚠️ Konnte das Gewicht nicht lesen — bitte z.B. "Gewicht 77.5kg" schreiben.';
-    const state = (await sbGet('po-coach')) || {};
-    const arr = state.po_coach_weights || [];
+    const snap = (await sbGet('patron-device-snapshot')) || { blob: {}, ts: 0 };
+    snap.blob = snap.blob || {};
+    let progress;
+    try { progress = JSON.parse(snap.blob.progress_standalone_v1 || '{}'); } catch (_) { progress = {}; }
+    progress.units = progress.units || 'kg';
+    progress.entries = Array.isArray(progress.entries) ? progress.entries : [];
     const k = todayKey();
-    const idx = arr.findIndex((e) => e.dateKey === k);
-    if (idx >= 0) arr[idx].weight = kg; else arr.push({ dateKey: k, weight: kg });
-    state.po_coach_weights = arr;
-    await sbUpsert('po-coach', state);
+    const idx = progress.entries.findIndex((e) => e.dateKey === k);
+    if (idx >= 0) progress.entries[idx].weightKg = kg; else progress.entries.push({ dateKey: k, weightKg: kg });
+    snap.blob.progress_standalone_v1 = JSON.stringify(progress);
+    snap.ts = Date.now();
+    await sbUpsert('patron-device-snapshot', snap);
     return `⚖️ Gewicht heute auf ${kg}kg eingetragen.`;
   }
 
