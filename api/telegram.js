@@ -48,9 +48,10 @@ module.exports = async (req, res) => {
       res.end('ok'); return;
     }
 
-    const action = await classify(text);
-    const confirmation = await applyAction(action);
-    await reply(chatId, confirmation);
+    const actions = await classify(text);
+    const confirmations = [];
+    for (const action of actions) confirmations.push(await applyAction(action));
+    await reply(chatId, confirmations.join('\n'));
   } catch (e) {
     try { await reply(chatId, '⚠️ Da ist etwas schiefgelaufen: ' + (e && e.message || String(e))); } catch (_) {}
   }
@@ -88,28 +89,34 @@ async function transcribeVoice(fileId) {
 // small (water / weight / note) — easy to extend with the same pattern later
 // (food, finance, supplements, gym sets) once this is proven out.
 async function classify(text) {
-  if (!ANTHROPIC_KEY) return { type: 'note', text };
-  const sys = 'Du ordnest kurze deutsche oder englische Nachrichten einer Tracking-App genau einer Kategorie zu. ' +
-    'Antworte NUR mit kompaktem JSON, ohne Erklaerung, ohne Markdown-Codeblock.\n' +
-    'Kategorien:\n' +
+  if (!ANTHROPIC_KEY) return [{ type: 'note', text }];
+  const sys = 'Du ordnest kurze deutsche oder englische Nachrichten einer Tracking-App in eine oder mehrere Kategorien ein. ' +
+    'Eine einzelne Nachricht kann MEHRERE Fakten enthalten (z.B. Wasser UND Gewicht) — gib dann mehrere Objekte zurueck. ' +
+    'Antworte NUR mit einem kompakten JSON-Array, ohne Erklaerung, ohne Markdown-Codeblock.\n' +
+    'Moegliche Objekte im Array:\n' +
     '{"type":"water","glasses":<Anzahl 250ml-Glaeser; 1 Liter = 4>}\n' +
     '{"type":"weight","kg":<Zahl>}\n' +
-    '{"type":"note","text":"<Originalnachricht, leicht aufgeraeumt>"}\n' +
-    'Wenn unklar oder es einfach eine Beobachtung/Notiz ist, nimm "note".';
+    '{"type":"note","text":"<Originalnachricht oder der Teil davon, leicht aufgeraeumt>"}\n' +
+    'Wenn ein Teil der Nachricht zu keiner bekannten Kategorie passt oder alles unklar ist, nimm "note" dafuer. ' +
+    'Beispiel Eingabe "Habe heute 2L Wasser getrunken und mein Gewicht ist bei 99" -> ' +
+    '[{"type":"water","glasses":8},{"type":"weight","kg":99}]';
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
+      max_tokens: 300,
       system: sys,
       messages: [{ role: 'user', content: text }],
     }),
   });
   const j = await r.json();
   const out = (j && j.content && j.content[0] && j.content[0].text) || '';
-  const m = out.match(/\{[\s\S]*\}/);
-  try { return m ? JSON.parse(m[0]) : { type: 'note', text }; } catch (_) { return { type: 'note', text }; }
+  const m = out.match(/\[[\s\S]*\]/);
+  try {
+    const arr = m ? JSON.parse(m[0]) : null;
+    return Array.isArray(arr) && arr.length ? arr : [{ type: 'note', text }];
+  } catch (_) { return [{ type: 'note', text }]; }
 }
 
 function todayKey() {
